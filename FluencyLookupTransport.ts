@@ -6,7 +6,7 @@
  * The background accepts only two fixed providers and validates all input.
  */
 export type Service = 'dictionary' | 'translation';
-export type FluencyBridgeLookup = (service: Service, term: string, sentence?: string) => Promise<unknown>;
+export type FluencyBridgeLookup = (service: Service, term: string) => Promise<unknown>;
 type ChromeRuntime = {
     id?: string;
     lastError?: {message?: string};
@@ -23,13 +23,13 @@ const runtimeForUi = (): ChromeRuntime | undefined => {
         globals.browser?.runtime?.id ? globals.browser.runtime : undefined;
 };
 
-export async function fluencyGetJson(service: Service, term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup, sentence=''): Promise<unknown> {
+export async function fluencyGetJson(service: Service, term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup): Promise<unknown> {
     if (signal.aborted) throw new DOMException('Canceled', 'AbortError');
     // Netflix and other video sites host the Anki editor in an about:blank iframe.
     // Such frames may inherit the page origin and have no extension runtime.
     // Prefer the existing asbplayer message bridge when it is supplied.
     if (viaBridge) {
-        const result = await viaBridge(service, term, sentence);
+        const result = await viaBridge(service, term);
         if (signal.aborted) throw new DOMException('Canceled', 'AbortError');
         return result;
     }
@@ -59,7 +59,7 @@ export async function fluencyGetJson(service: Service, term: string, signal: Abo
         const timer=setTimeout(()=>rejectIfPending(Error('Tempo esgotado ao consultar '+service)),12000);
         signal.addEventListener('abort',aborted,{once:true});
         try {
-            runtime.sendMessage({command:'asbplayer-fluency-lookup',service,term,sentence},(result: unknown) => {
+            runtime.sendMessage({command:'asbplayer-fluency-lookup',service,term},(result: unknown) => {
                 if (settled) return;
                 const error=runtime.lastError?.message;
                 if (error) { rejectIfPending(Error(error));return; }
