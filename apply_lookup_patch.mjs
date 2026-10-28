@@ -20,7 +20,7 @@ const handler=[
   "        if (sender.id !== browser.runtime.id) { sendResponse({error:'Unauthorized sender'}); return true; }",
   "        const {service,term} = request as {service?:string,term?:string};",
   "        if ((service !== 'dictionary' && service !== 'translation') ||",
-  "            typeof term !== 'string' || !/^[A-Za-z][A-Za-z '\\u2019-]{0,79}$/.test(term)) {",
+  "            typeof term !== 'string' || !term.trim() || term.length > 160)) {",
   "            sendResponse({error:'Invalid lookup term'}); return true;",
   '        }',
   "        const url = service === 'dictionary'",
