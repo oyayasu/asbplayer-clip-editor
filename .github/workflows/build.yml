@@ -17,6 +17,10 @@ on:
       - 'apply_bridge_patch.mjs'
       - 'RemoteDictionary.ts'
       - 'apply_remote_patch.mjs'
+      - 'CleanNoteType.ts'
+      - 'CleanDefinitionPanel.tsx'
+      - 'CleanDictionary.ts'
+      - 'apply_clean_patch.mjs'
       - 'tests/**'
       - '.github/workflows/build.yml'
 
@@ -87,6 +91,12 @@ jobs:
 
       - name: Testar entrada livre sem glossário
         run: node tests/check-arbitrary-terms.mjs asbplayer
+
+      - name: Aplicar novo editor Definition
+        run: node apply_clean_patch.mjs asbplayer
+
+      - name: Verificar layout, modelos e controle de áudio
+        run: node tests/check-clean-editor.mjs asbplayer
 
       - name: Testar integração AnkiConnect
         run: node tests/check-anki-connect.mjs asbplayer
