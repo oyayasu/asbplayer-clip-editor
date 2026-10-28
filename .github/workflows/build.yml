@@ -6,6 +6,10 @@ on:
     paths:
       - 'ClipSelectionPanel.tsx'
       - 'apply_patch.mjs'
+      - 'apply_fluency_patch.mjs'
+      - 'FluencyNoteType.ts'
+      - 'SmartDefinitionPanel.tsx'
+      - 'tests/**'
       - '.github/workflows/build.yml'
 
 permissions:
@@ -45,6 +49,9 @@ jobs:
 
       - name: Instalar o modelo e os dicionários automáticos
         run: node apply_fluency_patch.mjs asbplayer
+
+      - name: Testar integração AnkiConnect
+        run: node tests/check-anki-connect.mjs asbplayer
 
       - name: Instalar dependências
         working-directory: asbplayer
