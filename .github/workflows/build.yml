@@ -20,6 +20,7 @@ on:
       - 'CleanNoteType.ts'
       - 'CleanDefinitionPanel.tsx'
       - 'CleanDictionary.ts'
+      - 'WiktApiProvider.ts'
       - 'apply_clean_patch.mjs'
       - 'tests/**'
       - '.github/workflows/build.yml'
@@ -94,6 +95,9 @@ jobs:
 
       - name: Aplicar novo editor Definition
         run: node apply_clean_patch.mjs asbplayer
+
+      - name: Validar WiktApi JSON e consultas reais
+        run: node --experimental-strip-types tests/check-wiktapi.mts --live
 
       - name: Verificar layout, modelos e controle de áudio
         run: node tests/check-clean-editor.mjs asbplayer
