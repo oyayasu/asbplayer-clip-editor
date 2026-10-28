@@ -10,6 +10,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { detectExpressions, suggestTerms } from './FluencyPhraseMatcher';
 import { curated, dictionaryLookup, translationLookup, normalize } from './SmartDefinitionPanel';
 import { MAX_MULTI_TERMS } from './FluencyMultiNoteType';
@@ -34,6 +35,7 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
     const [slotCount,setSlotCount] = useState(Math.max(1,terms.reduce((m,t,i) => t.trim() ? i + 1 : m, 0)));
     const [working,setWorking] = useState<number[]>([]);
     const [messages,setMessages] = useState<Record<number,string>>({});
+    const [retryCount,setRetryCount] = useState(0);
     const latest = useRef({values,terms});
     useEffect(() => { latest.current = {values,terms}; }, [values,terms]);
 
@@ -79,6 +81,8 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
                     ]);
                     if (controller.signal.aborted || normalize(latest.current.terms[index]||'') !== normalize(term)) return;
                     const info=dict.status === 'fulfilled' ? dict.value : {};
+                    const dictionaryError = dict.status === 'rejected' ? String(dict.reason) : '';
+                    const translationError = trans.status === 'rejected' ? String(trans.reason) : '';
                     const translation=trans.status === 'fulfilled' ? trans.value : '';
                     const candidate: Record<string,string> = {
                         PartOfSpeech: info.PartOfSpeech || '',
@@ -96,10 +100,12 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
                         onFieldsChange(changes);
                     }
                     setMessages(old => ({...old,[index]:
-                        !candidate.EnglishDefinition || !candidate.Portuguese
-                            ? 'Definição incompleta. Confira o significado ou preencha manualmente.'
-                            : known ? 'Expressão reconhecida. Verifique a cena.'
-                            : 'Sugestão automática. Verifique se o significado combina com a cena.'
+                        dictionaryError || translationError
+                            ? 'Consulta parcial ou indisponível: '+[dictionaryError,translationError].filter(Boolean).join(' / ')
+                            : !candidate.EnglishDefinition || !candidate.Portuguese
+                              ? 'Não encontrei todos os dados. Tente novamente ou complete os campos.'
+                              : known ? 'Expressão reconhecida no glossário. Confira o contexto.'
+                              : 'Dados encontrados automaticamente. Confira o significado na cena.'
                     }));
                 } catch {
                     if (!controller.signal.aborted) setMessages(old => ({...old,[index]:'Consulta indisponível. Preencha os campos manualmente.'}));
@@ -113,7 +119,7 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
     // The effect intentionally only responds to term changes; editing definitions
     // must not cause another network request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[keys]);
+    },[keys,retryCount]);
 
     const changeWord = (index:number,value:string) => {
         const previous=terms[index];
@@ -185,7 +191,14 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
                             onChange={e=>onFieldsChange({[field+suffix]:e.target.value})}/>;
                     })}
                 </Box>
-                {messages[index] && <Typography variant="caption" color="text.secondary" sx={{display:'block',mt:0.7}}>{messages[index]}</Typography>}
+                <Box sx={{display:'flex',alignItems:'center',gap:1,flexWrap:'wrap',mt:0.8}}>
+                    <Button type="button" size="small" startIcon={<RefreshIcon/>}
+                        disabled={!term.trim() || active}
+                        onClick={()=>{ setMessages(old=>({...old,[index]:'Consultando...'}));setRetryCount(c=>c+1); }}>
+                        Buscar novamente
+                    </Button>
+                    {messages[index] && <Typography variant="caption" color="text.secondary">{messages[index]}</Typography>}
+                </Box>
             </Paper>;
         })}
         <Button type="button" variant="outlined" startIcon={<AddIcon/>} disabled={slotCount>=MAX_MULTI_TERMS}
