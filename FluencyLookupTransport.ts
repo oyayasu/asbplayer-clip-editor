@@ -5,7 +5,8 @@
  *
  * The background accepts only two fixed providers and validates all input.
  */
-type Service = 'dictionary' | 'translation';
+export type Service = 'dictionary' | 'translation';
+export type FluencyBridgeLookup = (service: Service, term: string) => Promise<unknown>;
 type ChromeRuntime = {
     id?: string;
     lastError?: {message?: string};
@@ -22,8 +23,16 @@ const runtimeForUi = (): ChromeRuntime | undefined => {
         globals.browser?.runtime?.id ? globals.browser.runtime : undefined;
 };
 
-export async function fluencyGetJson(service: Service, term: string, signal: AbortSignal): Promise<unknown> {
+export async function fluencyGetJson(service: Service, term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup): Promise<unknown> {
     if (signal.aborted) throw new DOMException('Canceled', 'AbortError');
+    // Netflix and other video sites host the Anki editor in an about:blank iframe.
+    // Such frames may inherit the page origin and have no extension runtime.
+    // Prefer the existing asbplayer message bridge when it is supplied.
+    if (viaBridge) {
+        const result = await viaBridge(service, term);
+        if (signal.aborted) throw new DOMException('Canceled', 'AbortError');
+        return result;
+    }
     const runtime = runtimeForUi();
     if (!runtime) {
         // Unmodified web app / standalone player fallback.
