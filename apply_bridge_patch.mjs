@@ -81,7 +81,7 @@ const replace=(s,from,to,label)=>{
     const code=[
         "        if (message.body?.action === 'fluencyLookup') {",
         '            const {term,service}=message.body;',
-        "            if (typeof term !== 'string' || !/^[a-z][a-z '\\u2019-]{0,79}$/i.test(term) ||",
+        "            if (typeof term !== 'string' || !term.trim() || term.length > 160 ||",
         "                (service !== 'dictionary' && service !== 'translation')) {",
         "                sendResponse({error:'Invalid dictionary term or service'});",
         '                return true;',
