@@ -6,6 +6,7 @@ import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { detectExpression, suggestTerms } from './FluencyPhraseMatcher';
 
 export type FluencyFields = {
     PartOfSpeech: string;
@@ -90,10 +91,16 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
     const lastAuto = useRef<FluencyFields>(emptyFields);
     useEffect(() => { latest.current = { values, onFieldsChange }; }, [values, onFieldsChange]);
 
-    const tokens = useMemo(() => {
-        const matches = sentence.match(/[A-Za-z]+(?:['’][A-Za-z]+)?(?:-[A-Za-z]+)*/g) || [];
-        return [...new Set(matches)].slice(0, 20);
-    }, [sentence]);
+    const tokens = useMemo(() => suggestTerms(sentence), [sentence]);
+
+    // The last version only looked up a word if the user manually filled Word.
+    // When a known idiom or phrase occurs in the subtitle, select it automatically.
+    // Never guess for an unknown sentence: offer explicit choices instead.
+    useEffect(() => {
+        if (word.trim()) return;
+        const expression = detectExpression(sentence);
+        if (expression) onWordChange(expression);
+    }, [sentence, word, onWordChange]);
 
     const lookup = useCallback(async (term: string, signal: AbortSignal) => {
         const key = normalize(term);
@@ -167,7 +174,7 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
                 </Button>
             </Box>
             <Typography variant="caption" color="text.secondary">
-                Clique numa palavra da legenda ou escreva uma expressão no campo Word. A consulta preenche os quatro campos abaixo.
+                Uma expressão conhecida é selecionada automaticamente. Para estudar outra palavra, clique abaixo ou preencha Word. Revise os significados antes de salvar.
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, my: 1.25 }}>
                 {tokens.map(token => (
@@ -175,6 +182,11 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
                         color={normalize(token) === current ? 'primary' : 'default'} onClick={() => onWordChange(token)}/>
                 ))}
             </Box>
+            {!word.trim() && (
+                <Alert severity="warning" sx={{ mb: 1.5 }}>
+                    Escolha abaixo uma palavra ou expressão da cena. Não é possível saber com segurança qual termo você quer aprender sem uma seleção.
+                </Alert>
+            )}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
                 <TextField label="Classe gramatical" value={values.PartOfSpeech} onChange={e => setField('PartOfSpeech', e.target.value)} size="small" fullWidth placeholder="phrasal verb"/>
                 <TextField label="IPA (quando disponível)" value={values.IPA} onChange={e => setField('IPA', e.target.value)} size="small" fullWidth placeholder="/ˈfɪɡjɚ/"/>
