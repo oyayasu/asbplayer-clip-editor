@@ -30,12 +30,12 @@ const replace=(s,from,to,label)=>{
         '    anki,\n    fluencyLookup,\n    source:',
         'Lookup prop destructuring');
     s=replace(s,
-        '                            <MultiVocabularyPanel\n                                sentence={text}',
-        '                            <MultiVocabularyPanel\n                                fluencyLookup={fluencyLookup}\n                                sentence={text}',
+        '                            <MultiVocabularyPanel\n                                word={word}',
+        '                            <MultiVocabularyPanel\n                                fluencyLookup={fluencyLookup}\n                                word={word}',
         'Multi lookup');
     s=replace(s,
-        '                            <SmartDefinitionPanel\n                                sentence={text}',
-        '                            <SmartDefinitionPanel\n                                fluencyLookup={fluencyLookup}\n                                sentence={text}',
+        '                            <SmartDefinitionPanel\n                                word={word}',
+        '                            <SmartDefinitionPanel\n                                fluencyLookup={fluencyLookup}\n                                word={word}',
         'One-word lookup');
     save(file,s);
 }
