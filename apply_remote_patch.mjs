@@ -31,7 +31,7 @@ fs.copyFileSync(path.resolve('RemoteDictionary.ts'),dst);
   if(begin<0||end<0||s.indexOf("Dictionary provider HTTP",begin)>end)throw Error('Could not identify old online lookup handler');
   const handler=[
     "            if (service === 'dictionary') {",
-    "                void resolveRemoteDictionary(term)"
+    "                void resolveRemoteDictionary(term)",
     "                    .then((result)=>sendResponse(result))",
     "                    .catch((e)=>sendResponse({error:e instanceof Error ? e.message : String(e)}));",
     "                return true;",
