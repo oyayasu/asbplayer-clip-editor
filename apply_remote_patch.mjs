@@ -24,17 +24,14 @@ fs.copyFileSync(path.resolve('RemoteDictionary.ts'),dst);
     'Permit subtitle context field');
   s=replace(s,
     '            const {term,service}=message.body;',
-    '            const {term,service,sentence}=message.body;',
+    '            const {term,service}=message.body;',
     'Read sentence context');
   const begin=s.indexOf("            const url=service === 'dictionary'");
   const end=s.indexOf('            return true;',begin);
   if(begin<0||end<0||s.indexOf("Dictionary provider HTTP",begin)>end)throw Error('Could not identify old online lookup handler');
   const handler=[
-    "            if (typeof sentence !== 'undefined' && (typeof sentence !== 'string' || sentence.length > 600)) {",
-    "                sendResponse({error:'Invalid subtitle context'}); return true;",
-    "            }",
     "            if (service === 'dictionary') {",
-    "                void resolveRemoteDictionary(term, typeof sentence === 'string' ? sentence : '')",
+    "                void resolveRemoteDictionary(term)"
     "                    .then((result)=>sendResponse(result))",
     "                    .catch((e)=>sendResponse({error:e instanceof Error ? e.message : String(e)}));",
     "                return true;",
@@ -61,11 +58,11 @@ fs.copyFileSync(path.resolve('RemoteDictionary.ts'),dst);
   let s=read(file);
   s=replace(s,
     '    const fluencyLookup: FluencyBridgeLookup = useCallback(async (service, term) => {',
-    '    const fluencyLookup: FluencyBridgeLookup = useCallback(async (service, term, sentence) => {',
+    '    const fluencyLookup: FluencyBridgeLookup = useCallback(async (service, term) => {',
     'Send context through existing bridge');
   s=replace(s,
     "            action: 'fluencyLookup', service, term,",
-    "            action: 'fluencyLookup', service, term, sentence: sentence || '',",
+    "            action: 'fluencyLookup', service, term,",
     'Send subtitle in lookup message');
   save(file,s);
 }
