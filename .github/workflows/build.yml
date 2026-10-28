@@ -43,6 +43,9 @@ jobs:
       - name: Aplicar modificações
         run: node apply_patch.mjs asbplayer
 
+      - name: Instalar o modelo e os dicionários automáticos
+        run: node apply_fluency_patch.mjs asbplayer
+
       - name: Instalar dependências
         working-directory: asbplayer
         run: pnpm install --frozen-lockfile
