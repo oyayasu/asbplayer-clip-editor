@@ -98,7 +98,7 @@ export default function CleanDefinitionPanel({word,values,onWordChange,onFieldsC
     setErrors(p=>({...p,[index]:''}));
   };
   const removeTerm=(index:number)=>{
-    const remaining=terms.map((term,i)=>({
+    const remaining:Array<Record<string,string>>=terms.map((term,i)=>({
       term,...Object.fromEntries(fields.map(f=>[f,values[full(i,f)]||'']))
     })).filter((_,i)=>i!==index).filter(item=>item.term.trim());
     const patch:Record<string,string>={};
