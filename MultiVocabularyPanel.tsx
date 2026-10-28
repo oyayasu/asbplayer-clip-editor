@@ -12,7 +12,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { detectExpressions, suggestTerms } from './FluencyPhraseMatcher';
-import { curated, dictionaryLookup, translationLookup, normalize } from './SmartDefinitionPanel';
+import { dictionaryLookup, translationLookup, normalize } from './SmartDefinitionPanel';
 import { MAX_MULTI_TERMS } from './FluencyMultiNoteType';
 import type { FluencyBridgeLookup } from './FluencyLookupTransport';
 
@@ -76,10 +76,9 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
                 if (controller.signal.aborted) return;
                 setWorking(old => old.includes(index) ? old : [...old,index]);
                 try {
-                    const known=curated[normalize(term)];
                     const [dict,trans]=await Promise.allSettled([
-                        known ? Promise.resolve(known) : dictionaryLookup(term,controller.signal,fluencyLookup),
-                        known ? Promise.resolve(known.Portuguese) : translationLookup(term,controller.signal,fluencyLookup),
+                        dictionaryLookup(term,controller.signal,fluencyLookup,sentence),
+                        translationLookup(term,controller.signal,fluencyLookup),
                     ]);
                     if (controller.signal.aborted || normalize(latest.current.terms[index]||'') !== normalize(term)) return;
                     const info=dict.status === 'fulfilled' ? dict.value : {};
@@ -106,8 +105,7 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
                             ? 'Consulta parcial ou indisponível: '+[dictionaryError,translationError].filter(Boolean).join(' / ')
                             : !candidate.EnglishDefinition || !candidate.Portuguese
                               ? 'Não encontrei todos os dados. Tente novamente ou complete os campos.'
-                              : known ? 'Expressão reconhecida no glossário. Confira o contexto.'
-                              : 'Dados encontrados automaticamente. Confira o significado na cena.'
+                              : 'Dados encontrados nos dicionários online. Confira o significado na cena.'
                     }));
                 } catch {
                     if (!controller.signal.aborted) setMessages(old => ({...old,[index]:'Consulta indisponível. Preencha os campos manualmente.'}));
