@@ -2,6 +2,21 @@
 
 Extensão personalizada para criar cartões no Anki com áudio real, imagem da cena e definições.
 
+## Novo: vários termos no mesmo cartão
+
+A atualização do **asbplayer Fluency Multi v1** acrescenta um segundo tipo de nota no Anki; não modifica cartões antigos.
+
+1. Instale a extensão compilada no Brave e mantenha o Anki aberto com AnkiConnect.
+2. Em **Settings → Anki**, clique em **Ativar modelo multi-expressões no Anki**.
+3. Ao exportar uma cena, o painel **Vocabulary — uma cena, várias expressões** identifica expressões conhecidas e permite acrescentar outras.
+4. Cada termo possui **classe gramatical, IPA opcional, definição em inglês e significado em português** independentes. É possível editar ou remover itens antes de exportar.
+5. No Anki, um só cartão apresenta a imagem, o áudio original e até cinco expressões no verso. Recomendamos de 1 a 3 por cena.
+6. A extensão avisa quando faltam definições, em vez de exportar cartões incompletos sem confirmação.
+
+Exemplo: **“He is such a sore loser. You heard obviously that I mopped the floor with him this afternoon.”** permite estudar **sore loser** e **mop the floor with someone** no mesmo cartão.
+
+**Limitação:** o reconhecimento automático utiliza padrões conhecidos e dicionários online; nem todas as expressões recebem significado contextual automaticamente. Não salve sem conferir o sentido.
+
 ## O que esta versão adiciona
 
 - Editor de trecho ampliado com começo/fim em milissegundos, controles de ±0.1s e ±0.5s e legendas completas.
