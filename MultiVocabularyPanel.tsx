@@ -14,6 +14,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import { detectExpressions, suggestTerms } from './FluencyPhraseMatcher';
 import { curated, dictionaryLookup, translationLookup, normalize } from './SmartDefinitionPanel';
 import { MAX_MULTI_TERMS } from './FluencyMultiNoteType';
+import type { FluencyBridgeLookup } from './FluencyLookupTransport';
 
 interface Props {
     sentence: string;
@@ -21,6 +22,7 @@ interface Props {
     values: Record<string,string>;
     onWordChange: (term: string) => void;
     onFieldsChange: (changes: Record<string,string>) => void;
+    fluencyLookup?: FluencyBridgeLookup;
 }
 
 type FluencyField = 'PartOfSpeech' | 'IPA' | 'EnglishDefinition' | 'Portuguese';
@@ -29,7 +31,7 @@ const suffixFor = (index: number) => index === 0 ? '' : String(index + 1);
 const nameFor = (index: number, field: string) => field + suffixFor(index);
 const colors = ['#9471cc','#159c91','#d68a38','#518bbf','#b55b7c'];
 
-export default function MultiVocabularyPanel({sentence, word, values, onWordChange, onFieldsChange}: Props) {
+export default function MultiVocabularyPanel({sentence, word, values, onWordChange, onFieldsChange, fluencyLookup}: Props) {
     const terms = useMemo(() => Array.from({length:MAX_MULTI_TERMS}, (_,i) =>
         i === 0 ? word : (values[nameFor(i,'Word')] || '')), [word,values]);
     const [slotCount,setSlotCount] = useState(Math.max(1,terms.reduce((m,t,i) => t.trim() ? i + 1 : m, 0)));
@@ -76,8 +78,8 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
                 try {
                     const known=curated[normalize(term)];
                     const [dict,trans]=await Promise.allSettled([
-                        known ? Promise.resolve(known) : dictionaryLookup(term,controller.signal),
-                        known ? Promise.resolve(known.Portuguese) : translationLookup(term,controller.signal),
+                        known ? Promise.resolve(known) : dictionaryLookup(term,controller.signal,fluencyLookup),
+                        known ? Promise.resolve(known.Portuguese) : translationLookup(term,controller.signal,fluencyLookup),
                     ]);
                     if (controller.signal.aborted || normalize(latest.current.terms[index]||'') !== normalize(term)) return;
                     const info=dict.status === 'fulfilled' ? dict.value : {};
@@ -119,7 +121,7 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
     // The effect intentionally only responds to term changes; editing definitions
     // must not cause another network request.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[keys,retryCount]);
+    },[keys,retryCount,fluencyLookup]);
 
     const changeWord = (index:number,value:string) => {
         const previous=terms[index];
