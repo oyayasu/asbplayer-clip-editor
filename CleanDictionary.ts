@@ -12,6 +12,25 @@ const unique=(items:CleanSense[])=>{
        return true;
     }).slice(0,12);
 };
+// Merriam-Webster nests idiom definitions under def[].sseq[][] with
+// ["sense", {dt:[["text", "{bc}definition ..."]]}] nodes.
+const nestedDefinitionTexts=(node:unknown):string[]=>{
+    const values:string[]=[];
+    const walk=(part:any)=>{
+        if(Array.isArray(part)){
+            if(part[0]==='text' && typeof part[1]==='string'){
+                values.push(part[1]);return;
+            }
+            for(const child of part)walk(child);
+        } else if(part && typeof part==='object'){
+            for(const [key,value] of Object.entries(part)){
+                if(key==='dt'||key==='sseq'||key==='sense'||key==='def')walk(value);
+            }
+        }
+    };
+    walk(node);
+    return values;
+};
 const idiomMatch=(term:string, phrase:string)=>{
     const target=normalized(term), candidate=normalized(phrase);
     return candidate===target || candidate.replace(/[\[\]()*]/g,'')===target;
@@ -42,11 +61,7 @@ export function parseMerriamWebsterLearners(data:unknown,term:string):CleanSense
         for(const sub of dros){
             if(!idiomMatch(term,String(sub?.drp||'')))continue;
             const short=Array.isArray(sub.shortdef)?sub.shortdef:[];
-            const textDefs=short.length?short:(
-                Array.isArray(sub.def)?sub.def.flatMap((d:any)=>
-                  Array.isArray(d?.sseq)?d.sseq.flat(3)
-                    .filter((x:any)=>Array.isArray(x)&&x[0]==='text')
-                    .map((x:any)=>x[1]):[]):[]);
+            const textDefs=short.length?short:nestedDefinitionTexts(sub.def);
             for(const def of textDefs.slice(0,6)){
                 const definition=tidy(def);
                 if(definition)list.push({
