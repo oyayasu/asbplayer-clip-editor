@@ -1,4 +1,5 @@
 import { resolveRemoteDictionary } from './remote-dictionary';
+import { fetchWiktApi } from './wiktapi-provider';
 
 export type CleanSense = {partOfSpeech:string; definition:string; ipa:string; source:string; label:string};
 const tidy=(value:unknown)=>String(value||'').replace(/\{[^}]*\}/g,'').replace(/\s+/g,' ').trim();
@@ -87,37 +88,50 @@ const fetchLearners=async(term:string,key:string):Promise<CleanSense[]>=>{
     }finally{clearTimeout(timer);}
 };
 
+/**
+ * Merriam-Webster remains the first choice. WiktApi supplies additional
+ * meanings even if Merriam-Webster finds the term. Existing online dictionary
+ * fallbacks are only needed if both main sources have no entries.
+ */
 export async function lookupCleanTerm(term:string,mwKey=''):Promise<{senses:CleanSense[];warning?:string}>{
     const value=term.trim().slice(0,160);
     if(!value)throw Error('Digite um termo para pesquisar.');
-    let mwError='';
-    if(mwKey){
-        try{
-            let senses=await fetchLearners(value,mwKey);
-            // Multi-word idioms are often nested under their base verb/noun.
-            if(!senses.length && value.includes(' ')){
-                const first=value.split(/\s+/)[0];
-                const nested=await fetchLearners(first,mwKey);
-                senses=nested.filter(s=>s.partOfSpeech==='idiom / phrase');
-            }
-            if(senses.length)return{senses};
-        }catch(e){mwError=String(e);}
+
+    const [merriam,wiktapi]=await Promise.allSettled([
+        mwKey ? fetchLearners(value,mwKey) : Promise.resolve([] as CleanSense[]),
+        fetchWiktApi(value),
+    ]);
+    const primary=merriam.status==='fulfilled' ? merriam.value : [];
+    const complementary=wiktapi.status==='fulfilled' ? wiktapi.value : [];
+    const combined=unique([...primary,...complementary]);
+    if(combined.length){
+        return {
+            senses:combined,
+            warning:merriam.status==='rejected' ? 'Merriam-Webster indisponível; outras fontes foram usadas.' :
+                wiktapi.status==='rejected' ? 'WiktApi indisponível; Merriam-Webster respondeu.' : undefined,
+        };
     }
+
+    const errors=[
+        ...(merriam.status==='rejected' ? ['Merriam-Webster: '+String(merriam.reason)] : []),
+        ...(wiktapi.status==='rejected' ? ['WiktApi: '+String(wiktapi.reason)] : []),
+    ];
     try{
         const fallback=await resolveRemoteDictionary(value);
         const senses=unique((Array.isArray(fallback)?fallback:[]).flatMap((entry:any)=>
             (entry.meanings||[]).flatMap((meaning:any)=>
-                (meaning.definitions||[]).map((d:any,i:number)=>({
+                (meaning.definitions||[]).map((d:any)=>({
                     partOfSpeech:String(meaning.partOfSpeech||'expression'),
                     definition:tidy(d.definition),
                     ipa:String(entry.phonetics?.[0]?.text||''),
                     source:String(entry.provider||'Online dictionary'),
-                    label:tidy(d.definition).slice(0,95)
+                    label:tidy(d.definition).slice(0,95),
                 }))
             )));
-        if(senses.length)return{senses,warning:mwError?'Merriam-Webster unavailable; online alternatives used.':undefined};
+        if(senses.length)return {senses,warning:errors.length ? errors.join('; ') : undefined};
     }catch(e){
-        throw Error(mwError ? 'Fontes indisponíveis: '+mwError+'; '+String(e):String(e));
+        errors.push(String(e));
     }
-    throw Error('Nenhuma definição encontrada para "'+value+'". Tente a forma-base ou outra grafia.');
+    throw Error('Nenhuma definição encontrada para "'+value+'".'+
+        (errors.length ? ' Fontes: '+errors.join('; ') : ' Tente outra grafia ou forma-base.'));
 }
