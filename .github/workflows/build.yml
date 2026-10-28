@@ -14,6 +14,7 @@ on:
       - 'apply_multi_patch.mjs'
       - 'FluencyLookupTransport.ts'
       - 'apply_lookup_patch.mjs'
+      - 'apply_bridge_patch.mjs'
       - 'FluencyPhraseMatcher.ts'
       - 'tests/**'
       - '.github/workflows/build.yml'
@@ -64,6 +65,12 @@ jobs:
 
       - name: Testar as consultas de dicionário
         run: node tests/check-background-lookup.mjs asbplayer
+
+      - name: Integrar consultas pela ponte do Anki
+        run: node apply_bridge_patch.mjs asbplayer
+
+      - name: Testar a ponte de consultas
+        run: node tests/check-iframe-lookup.mjs asbplayer
 
       - name: Testar integração AnkiConnect
         run: node tests/check-anki-connect.mjs asbplayer
