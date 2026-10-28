@@ -235,4 +235,13 @@ for(const [file,destination] of [
    'intercept clean actions before old dictionary');
  save(file,s);
 }
+{
+ const file='extension/src/ui/bridge-fetcher.ts';
+ let s=load(file);
+ s=swap(s,
+   "body?.action === 'fluencyLookup' ? 14000 : undefined",
+   "(body?.action === 'fluencyLookup' || body?.action === 'fluencyCleanLookup') ? 18000 : undefined",
+   'allow full Merriam-Webster and fallback timeout');
+ save(file,s);
+}
 console.log('OK: Clean Definition, original AudioField, ClipSelection and separate Anki model.');
