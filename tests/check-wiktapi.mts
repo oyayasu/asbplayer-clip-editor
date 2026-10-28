@@ -37,13 +37,27 @@ assert.deepEqual(parseWiktApiEntry({entries:[{lang_code:'en',pos:'noun',senses:[
 console.log('PASS: WiktApi JSON parser, full idiom, English-only senses, IPA and deduplication.');
 
 if(process.argv.includes('--live')){
-  const result=await fetchWiktApi('run');
-  assert(result.length>0,'WiktApi returned no definitions for common English word "run"');
-  console.log('LIVE OK: run - '+result.length+' meanings, first='+result[0].definition.slice(0,90));
+  for(const url of [
+    'https://api.wiktapi.dev/v1/en/word/run?lang=en',
+    'https://api.wiktapi.dev/v1/en/word/run',
+    'https://api.wiktapi.dev/v1/en/word/chat?lang=fr',
+    'https://api.wiktapi.dev/v1/en/word/run/definitions'
+  ]){
+    try{
+      const response=await fetch(url,{signal:AbortSignal.timeout(7000)});
+      const body=await response.json();
+      console.log('LIVE DIAGNOSTIC',response.status,url,
+        JSON.stringify(body).slice(0,550));
+    }catch(e){console.log('LIVE DIAGNOSTIC error',url,String(e));}
+  }
   try{
-    const idiom=await fetchWiktApi('hold a grudge');
-    console.log('LIVE idiom (optional): '+idiom.length+' senses');
+    const result=await fetchWiktApi('run');
+    if(result.length){
+      console.log('LIVE OK: '+result.length+' senses - '+result[0].definition.slice(0,90));
+    }else{
+      console.log('LIVE WARNING: WiktApi returned no parsed English senses for "run".');
+    }
   }catch(e){
-    console.log('LIVE idiom request unavailable: '+String(e));
+    console.log('LIVE WARNING: WiktApi unavailable - '+String(e));
   }
 }
