@@ -24,7 +24,7 @@ type Props = {
 };
 
 const emptyFields: FluencyFields = { PartOfSpeech: '', IPA: '', EnglishDefinition: '', Portuguese: '' };
-const curated: Record<string, FluencyFields> = {
+export const curated: Record<string, FluencyFields> = {
     'figure out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To understand or discover something by thinking about it.', Portuguese: 'Entender, descobrir ou decifrar alguma coisa.' },
     'work things out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To resolve a problem or disagreement through discussion or effort.', Portuguese: 'Resolver as coisas; chegar a um entendimento.' },
     'work out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To find a solution, or to develop successfully. It can also mean to exercise.', Portuguese: 'Resolver; dar certo; ou fazer exercícios, conforme o contexto.' },
@@ -32,6 +32,7 @@ const curated: Record<string, FluencyFields> = {
     'stand my ground': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To refuse to change your position or give in under pressure.', Portuguese: 'Manter minha posição; não ceder.' },
     'stand your ground': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To refuse to change your position or give in under pressure.', Portuguese: 'Manter sua posição; não ceder.' },
     'sore loser': { PartOfSpeech: 'noun phrase', IPA: '', EnglishDefinition: 'Someone who becomes upset or behaves badly after losing.', Portuguese: 'Mau perdedor.' },
+    'mop the floor with someone': { PartOfSpeech: 'idiom · informal', IPA: '', EnglishDefinition: 'To defeat someone very easily or decisively, especially in a competition.', Portuguese: 'Vencer alguém de lavada; acabar com alguém numa disputa.' },
     'take out a loan': { PartOfSpeech: 'verb phrase', IPA: '', EnglishDefinition: 'To borrow money from a lender under an agreement to repay it.', Portuguese: 'Contrair um empréstimo.' },
     'tend to': { PartOfSpeech: 'verb phrase', IPA: '', EnglishDefinition: 'To usually behave in a particular way or be likely to do something.', Portuguese: 'Costumar; ter tendência a.' },
     'jump bad': { PartOfSpeech: 'slang (AAVE)', IPA: '', EnglishDefinition: 'To act aggressively or confrontationally toward another person.', Portuguese: 'Procurar briga; bancar o valentão.' },
@@ -45,7 +46,7 @@ const curated: Record<string, FluencyFields> = {
     'straighten out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To resolve a problem, clarify a misunderstanding, or put something in order.', Portuguese: 'Resolver; esclarecer; colocar em ordem.' },
 };
 
-const normalize = (value: string) => value.trim().toLowerCase().replace(/[!?.,;:]+$/g, '').replace(/\s+/g, ' ');
+export const normalize = (value: string) => value.trim().toLowerCase().replace(/[!?.,;:]+$/g, '').replace(/\s+/g, ' ');
 
 type DictionaryEntry = {
     phonetic?: string;
@@ -53,7 +54,7 @@ type DictionaryEntry = {
     meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string; example?: string }> }>;
 };
 
-const dictionaryLookup = async (term: string, signal: AbortSignal): Promise<Partial<FluencyFields>> => {
+export const dictionaryLookup = async (term: string, signal: AbortSignal): Promise<Partial<FluencyFields>> => {
     if (!/^[a-z][a-z '-]{0,75}$/i.test(term)) return {};
     const response = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(term), { signal });
     if (response.status === 404) return {};
@@ -72,7 +73,7 @@ const dictionaryLookup = async (term: string, signal: AbortSignal): Promise<Part
     };
 };
 
-const translationLookup = async (term: string, signal: AbortSignal): Promise<string> => {
+export const translationLookup = async (term: string, signal: AbortSignal): Promise<string> => {
     const params = new URLSearchParams({ q: term, langpair: 'en|pt-BR' });
     const response = await fetch('https://api.mymemory.translated.net/get?' + params, { signal });
     if (!response.ok) throw new Error('translation: ' + response.status);
