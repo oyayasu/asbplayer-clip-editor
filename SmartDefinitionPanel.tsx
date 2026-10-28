@@ -27,31 +27,6 @@ type Props = {
 };
 
 const emptyFields: FluencyFields = { PartOfSpeech: '', IPA: '', EnglishDefinition: '', Portuguese: '' };
-export const curated: Record<string, FluencyFields> = {
-    'figure out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To understand or discover something by thinking about it.', Portuguese: 'Entender, descobrir ou decifrar alguma coisa.' },
-    'work things out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To resolve a problem or disagreement through discussion or effort.', Portuguese: 'Resolver as coisas; chegar a um entendimento.' },
-    'work out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To find a solution, or to develop successfully. It can also mean to exercise.', Portuguese: 'Resolver; dar certo; ou fazer exercícios, conforme o contexto.' },
-    'hold a grudge': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To continue feeling angry with someone because of something they did.', Portuguese: 'Guardar rancor.' },
-    'stand my ground': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To refuse to change your position or give in under pressure.', Portuguese: 'Manter minha posição; não ceder.' },
-    'stand your ground': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To refuse to change your position or give in under pressure.', Portuguese: 'Manter sua posição; não ceder.' },
-    'sore loser': { PartOfSpeech: 'noun phrase', IPA: '', EnglishDefinition: 'Someone who becomes upset or behaves badly after losing.', Portuguese: 'Mau perdedor.' },
-    'mop the floor with someone': { PartOfSpeech: 'idiom · informal', IPA: '', EnglishDefinition: 'To defeat someone very easily or decisively, especially in a competition.', Portuguese: 'Vencer alguém de lavada; acabar com alguém numa disputa.' },
-    'take out a loan': { PartOfSpeech: 'verb phrase', IPA: '', EnglishDefinition: 'To borrow money from a lender under an agreement to repay it.', Portuguese: 'Contrair um empréstimo.' },
-    'tend to': { PartOfSpeech: 'verb phrase', IPA: '', EnglishDefinition: 'To usually behave in a particular way or be likely to do something.', Portuguese: 'Costumar; ter tendência a.' },
-    'procrastinate': { PartOfSpeech: 'verb', IPA: '/proʊˈkræstəneɪt/', EnglishDefinition: 'To delay doing something that needs to be done, often because it is unpleasant or difficult.', Portuguese: 'Procrastinar; adiar uma tarefa que deveria ser feita.' },
-    'mopped': { PartOfSpeech: 'verb (past tense)', IPA: '', EnglishDefinition: 'Past tense of mop: to clean a floor with a mop. In “mopped the floor with him”, it means to defeat him decisively.', Portuguese: 'Passado de mop (passar pano). Na expressão “mopped the floor with him”, significa vencer alguém de lavada.' },
-    'sore': { PartOfSpeech: 'adjective', IPA: '/sɔr/', EnglishDefinition: 'Painful or aching; figuratively, resentful or upset about something.', Portuguese: 'Dolorido; figurativamente, ressentido ou incomodado.' },
-    'jump bad': { PartOfSpeech: 'slang (AAVE)', IPA: '', EnglishDefinition: 'To act aggressively or confrontationally toward another person.', Portuguese: 'Procurar briga; bancar o valentão.' },
-    'pick a fight': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To deliberately provoke an argument or physical confrontation.', Portuguese: 'Procurar briga.' },
-    'end up': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To finally be in a situation or do something, often unexpectedly.', Portuguese: 'Acabar fazendo algo; acabar em determinada situação.' },
-    'bottom line': { PartOfSpeech: 'noun phrase', IPA: '', EnglishDefinition: 'The most important fact or final result of a situation.', Portuguese: 'O ponto principal; o que realmente importa.' },
-    'tied up': { PartOfSpeech: 'adjective (informal)', IPA: '', EnglishDefinition: 'Busy or unable to do something because of other commitments.', Portuguese: 'Ocupado; sem disponibilidade.' },
-    'give it a shot': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To try doing something, especially when success is uncertain.', Portuguese: 'Dar uma chance; tentar.' },
-    'be into': { PartOfSpeech: 'informal expression', IPA: '', EnglishDefinition: 'To be interested in or enthusiastic about something.', Portuguese: 'Gostar de; curtir.' },
-    'call for backup': { PartOfSpeech: 'verb phrase', IPA: '', EnglishDefinition: 'To request additional help or support.', Portuguese: 'Pedir reforços.' },
-    'straighten out': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To resolve a problem, clarify a misunderstanding, or put something in order.', Portuguese: 'Resolver; esclarecer; colocar em ordem.' },
-};
-
 export const normalize = (value: string) => value.trim().toLowerCase().replace(/[!?.,;:]+$/g, '').replace(/\s+/g, ' ');
 
 type DictionaryEntry = {
@@ -60,9 +35,9 @@ type DictionaryEntry = {
     meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string; example?: string }> }>;
 };
 
-export const dictionaryLookup = async (term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup): Promise<Partial<FluencyFields>> => {
+export const dictionaryLookup = async (term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup, sentence=''): Promise<Partial<FluencyFields>> => {
     if (!/^[a-z][a-z '-]{0,75}$/i.test(term)) return {};
-    const data: unknown = await fluencyGetJson('dictionary', term, signal, viaBridge);
+    const data: unknown = await fluencyGetJson('dictionary', term, signal, viaBridge, sentence);
     if (!Array.isArray(data)) return {};
     const entry = data[0] as DictionaryEntry | undefined;
     if (!entry) return {};
@@ -109,11 +84,8 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
         setLoading(true);
         setMessage('');
         try {
-            const known = curated[key];
-            const dictionaryPromise: Promise<Partial<FluencyFields>> = known
-                ? Promise.resolve(known) : dictionaryLookup(key, signal, fluencyLookup);
-            const translationPromise: Promise<string> = known
-                ? Promise.resolve(known.Portuguese) : translationLookup(key, signal, fluencyLookup);
+            const dictionaryPromise: Promise<Partial<FluencyFields>> = dictionaryLookup(key, signal, fluencyLookup, sentence);
+            const translationPromise: Promise<string> = translationLookup(key, signal, fluencyLookup);
 
             const [dictResult, transResult] = await Promise.allSettled([dictionaryPromise, translationPromise]);
             if (signal.aborted) return;
@@ -139,10 +111,8 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
 
             if (!fetched.EnglishDefinition || !fetched.Portuguese) {
                 setMessage('Alguns dados não foram encontrados. Confira ou complete os campos antes de exportar.');
-            } else if (!known) {
-                setMessage('Definição e tradução sugeridas automaticamente. Confira o sentido na cena.');
             } else {
-                setMessage('Expressão reconhecida no glossário; confira o contexto da cena.');
+                setMessage('Definição e tradução consultadas online. Confira o sentido na cena.');
             }
             if (dictResult.status === 'rejected' || transResult.status === 'rejected') {
                 setMessage('Um dos serviços está indisponível. Os campos encontrados foram preservados; você pode tentar novamente.');
