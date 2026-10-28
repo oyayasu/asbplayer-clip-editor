@@ -79,6 +79,9 @@ jobs:
       - name: Validar respostas reais de dicionários online
         run: node --experimental-strip-types tests/live-dictionary-smoke.mjs
 
+      - name: Testar ida e volta das definições pela ponte do navegador
+        run: node --experimental-strip-types tests/check-lookup-bridge.mts
+
       - name: Verificar ausência de glossário local e fallback
         run: node tests/check-remote-only.mjs asbplayer
 
