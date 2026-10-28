@@ -1,0 +1,67 @@
+name: Compilar extensão para Brave
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ClipSelectionPanel.tsx'
+      - 'apply_patch.mjs'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Obter projeto personalizado
+        uses: actions/checkout@v4
+
+      - name: Baixar código-fonte original
+        uses: actions/checkout@v4
+        with:
+          repository: asbplayer/asbplayer
+          ref: 2ccb722a88776958788b6b049a9e90bc675c0504
+          path: asbplayer
+          persist-credentials: false
+
+      - name: Instalar pnpm correto
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.27.0
+
+      - name: Instalar Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: pnpm
+          cache-dependency-path: asbplayer/pnpm-lock.yaml
+
+      - name: Aplicar modificações
+        run: node apply_patch.mjs asbplayer
+
+      - name: Instalar dependências
+        working-directory: asbplayer
+        run: pnpm install --frozen-lockfile
+
+      - name: Conferir TypeScript
+        working-directory: asbplayer
+        run: pnpm --filter @project/extension run compile
+
+      - name: Compilar extensão para Brave
+        working-directory: asbplayer
+        run: pnpm --filter @project/extension run build
+
+      - name: Validar manifesto
+        run: test -s asbplayer/extension/.output/chrome-mv3/manifest.json
+
+      - name: Disponibilizar extensão pronta
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASBPLAYER-CLIP-EDITOR-BRAVE
+          path: asbplayer/extension/.output/chrome-mv3/
+          if-no-files-found: error
+          retention-days: 14
