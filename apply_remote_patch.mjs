@@ -32,7 +32,7 @@ fs.copyFileSync(path.resolve('RemoteDictionary.ts'),dst);
   const handler=[
     "            if (service === 'dictionary') {",
     "                void resolveRemoteDictionary(term)",
-    "                    .then((result)=>sendResponse(result))",
+    "                    .then((result)=>sendResponse({fluencyDictionary:result}))",
     "                    .catch((e)=>sendResponse({error:e instanceof Error ? e.message : String(e)}));",
     "                return true;",
     "            }",
