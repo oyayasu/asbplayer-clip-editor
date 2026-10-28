@@ -11,13 +11,11 @@ import Typography from '@mui/material/Typography';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AddIcon from '@mui/icons-material/Add';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { detectExpressions, suggestTerms } from './FluencyPhraseMatcher';
 import { dictionaryLookup, translationLookup, normalize } from './SmartDefinitionPanel';
 import { MAX_MULTI_TERMS } from './FluencyMultiNoteType';
 import type { FluencyBridgeLookup } from './FluencyLookupTransport';
 
 interface Props {
-    sentence: string;
     word: string;
     values: Record<string,string>;
     onWordChange: (term: string) => void;
@@ -31,7 +29,7 @@ const suffixFor = (index: number) => index === 0 ? '' : String(index + 1);
 const nameFor = (index: number, field: string) => field + suffixFor(index);
 const colors = ['#9471cc','#159c91','#d68a38','#518bbf','#b55b7c'];
 
-export default function MultiVocabularyPanel({sentence, word, values, onWordChange, onFieldsChange, fluencyLookup}: Props) {
+export default function MultiVocabularyPanel({word, values, onWordChange, onFieldsChange, fluencyLookup}: Props) {
     const terms = useMemo(() => Array.from({length:MAX_MULTI_TERMS}, (_,i) =>
         i === 0 ? word : (values[nameFor(i,'Word')] || '')), [word,values]);
     const [slotCount,setSlotCount] = useState(Math.max(1,terms.reduce((m,t,i) => t.trim() ? i + 1 : m, 0)));
@@ -40,18 +38,6 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
     const [retryCount,setRetryCount] = useState(0);
     const latest = useRef({values,terms});
     useEffect(() => { latest.current = {values,terms}; }, [values,terms]);
-
-    // Auto-select known idioms from the scene, but do not replace an existing word.
-    useEffect(() => {
-        if (terms.some(t => t.trim())) return;
-        const found = detectExpressions(sentence).slice(0,3);
-        if (found.length === 0) return;
-        onWordChange(found[0]);
-        const changes: Record<string,string> = {};
-        for (let i=1; i<found.length; i++) changes[nameFor(i,'Word')] = found[i];
-        if (Object.keys(changes).length) onFieldsChange(changes);
-        setSlotCount(Math.max(1, found.length));
-    }, [sentence,terms,onWordChange,onFieldsChange]);
 
     useEffect(() => {
         const lastFilled = terms.reduce((m,t,i) => t.trim() ? i + 1 : m, 0);
@@ -62,7 +48,6 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
     const keys = terms.map(normalize).join('|');
     useEffect(() => {
         const active: AbortController[] = [];
-        const actions: number[] = [];
         for (let index=0;index<MAX_MULTI_TERMS;index++) {
             const term=latest.current.terms[index]?.trim() || '';
             if (!term) continue;
@@ -71,13 +56,12 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
             if (!needs) continue;
             const controller=new AbortController();
             active.push(controller);
-            actions.push(index);
             const timer=setTimeout(async () => {
                 if (controller.signal.aborted) return;
                 setWorking(old => old.includes(index) ? old : [...old,index]);
                 try {
                     const [dict,trans]=await Promise.allSettled([
-                        dictionaryLookup(term,controller.signal,fluencyLookup,sentence),
+                        dictionaryLookup(term,controller.signal,fluencyLookup),
                         translationLookup(term,controller.signal,fluencyLookup),
                     ]);
                     if (controller.signal.aborted || normalize(latest.current.terms[index]||'') !== normalize(term)) return;
@@ -147,9 +131,6 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
         setMessages({});
     };
 
-    const candidates = useMemo(() => suggestTerms(sentence)
-        .filter(term=>!terms.some(existing=>normalize(existing)===normalize(term)))
-        .slice(0,12), [sentence,terms]);
     const addTerm = (value='') => {
         if (slotCount>=MAX_MULTI_TERMS) return;
         const index=slotCount;
@@ -161,15 +142,11 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
         <Box sx={{ display:'flex',justifyContent:'space-between',gap:2,flexWrap:'wrap',alignItems:'center' }}>
             <Box>
                 <Typography variant="h6" sx={{fontWeight:700}}>Vocabulary — uma cena, várias expressões</Typography>
-                <Typography variant="caption" color="text.secondary">O áudio e a imagem são compartilhados. Cada expressão tem seu próprio significado.</Typography>
+                <Typography variant="caption" color="text.secondary">Digite qualquer termo; a definição, classificação, IPA e tradução são pesquisados online automaticamente.</Typography>
             </Box>
             <Chip size="small" variant="outlined" label={terms.slice(0,slotCount).filter(x=>x.trim()).length+' / '+MAX_MULTI_TERMS+' termos'}/>
         </Box>
         {slotCount>3 && <Alert severity="info" sx={{mt:1}}>Para memorizar melhor, considere dividir cenas com mais de 3 expressões em cartões separados.</Alert>}
-        <Box sx={{display:'flex', flexWrap:'wrap',gap:0.8,my:1.5}}>
-            {candidates.map(candidate=><Chip key={candidate} size="small" label={candidate} clickable
-                onClick={()=>addTerm(candidate)} disabled={slotCount>=MAX_MULTI_TERMS}/>)}
-        </Box>
         {Array.from({length:slotCount},(_,index)=>{
             const term=terms[index] || '';
             const active=working.includes(index);
@@ -178,7 +155,7 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
                 <Box sx={{display:'flex',gap:1,alignItems:'center',mb:1}}>
                     <Typography variant="subtitle2" sx={{minWidth:24,color:colors[index],fontWeight:700}}>{String(index+1).padStart(2,'0')}</Typography>
                     <TextField fullWidth variant="outlined" size="small" label={'Expressão '+(index+1)}
-                        placeholder={index===0?'sore loser':'mop the floor with someone'}
+                        placeholder="Digite uma palavra ou expressão"
                         value={term} onChange={e=>changeWord(index,e.target.value)}/>
                     {active && <CircularProgress size={17}/>}
                     <IconButton title="Remover expressão" onClick={()=>removeTerm(index)} size="small"><DeleteOutlineIcon/></IconButton>
@@ -204,7 +181,7 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
         <Button type="button" variant="outlined" startIcon={<AddIcon/>} disabled={slotCount>=MAX_MULTI_TERMS}
             onClick={()=>addTerm()} sx={{textTransform:'none',borderRadius:2}}>Adicionar expressão</Button>
         <Typography variant="caption" sx={{display:'block',mt:1.5}} color="text.secondary">
-            Traduções automáticas e definições podem estar fora de contexto. Se algum campo não for encontrado, ele fica editável para revisão.
+            Dicionários online e tradução automática, sem lista local de palavras. Campos não encontrados permanecem editáveis.
         </Typography>
     </Box>;
 }
