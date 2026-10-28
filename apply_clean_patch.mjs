@@ -12,7 +12,8 @@ const swap=(s,a,b,name)=>{
 for(const [file,destination] of [
   ['CleanNoteType.ts','common/components/CleanNoteType.ts'],
   ['CleanDefinitionPanel.tsx','common/components/CleanDefinitionPanel.tsx'],
-  ['CleanDictionary.ts','extension/src/services/clean-dictionary.ts']
+  ['CleanDictionary.ts','extension/src/services/clean-dictionary.ts'],
+  ['WiktApiProvider.ts','extension/src/services/wiktapi-provider.ts']
 ]){
   const target=path.join(root,destination);
   if(fs.existsSync(target))throw Error('Double patch: '+target);
@@ -243,5 +244,14 @@ for(const [file,destination] of [
    "(body?.action === 'fluencyLookup' || body?.action === 'fluencyCleanLookup') ? 18000 : undefined",
    'allow full Merriam-Webster and fallback timeout');
  save(file,s);
+}
+{
+  const file='extension/wxt.config.ts';
+  let s=load(file);
+  s=swap(s,
+    "'https://en.wiktionary.org/*', 'https://api.datamuse.com/*'",
+    "'https://en.wiktionary.org/*', 'https://api.datamuse.com/*', 'https://api.wiktapi.dev/*'",
+    'WiktApi host permission');
+  save(file,s);
 }
 console.log('OK: Clean Definition, original AudioField, ClipSelection and separate Anki model.');
