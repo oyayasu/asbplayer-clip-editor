@@ -31,6 +31,15 @@ export async function fluencyGetJson(service: Service, term: string, signal: Abo
     if (viaBridge) {
         const result = await viaBridge(service, term);
         if (signal.aborted) throw new DOMException('Canceled', 'AbortError');
+        // The asbplayer frame bridge spreads runtime replies into plain
+        // objects before adding messageId. A raw array becomes {0: ..., messageId}
+        // and Array.isArray() fails. The background now wraps the array.
+        if (service === 'dictionary' && result && typeof result === 'object' &&
+            'fluencyDictionary' in result) {
+            const entries = (result as {fluencyDictionary?: unknown}).fluencyDictionary;
+            if (!Array.isArray(entries)) throw Error('Resposta do dicionário inválida');
+            return entries;
+        }
         return result;
     }
     const runtime = runtimeForUi();
