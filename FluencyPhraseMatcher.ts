@@ -18,6 +18,7 @@ const patterns: Array<{ pattern: RegExp; term: string }> = [
     { pattern: /\b(?:straightened|straighten|straightens|straightening)\s+out\b/i, term: 'straighten out' },
     { pattern: /\bbottom\s+line\b/i, term: 'bottom line' },
     { pattern: /\bsore\s+loser\b/i, term: 'sore loser' },
+    { pattern: /\b(?:mop|mops|mopped|mopping)\s+the\s+floor\s+with\s+(?:me|you|him|her|us|them|someone)\b/i, term: 'mop the floor with someone' },
     { pattern: /\btied\s+up\b/i, term: 'tied up' },
     { pattern: /\bjump(?:s|ed|ing)?\s+bad\b/i, term: 'jump bad' },
 ];
@@ -31,8 +32,16 @@ const stopwords = new Set([
     'really','also','too','now','then'
 ]);
 
+export function detectExpressions(sentence: string): string[] {
+    // Keep the order in which the expressions actually occur in the scene.
+    const matches = patterns.map(({pattern,term}) => ({term, index: sentence.search(pattern)}))
+        .filter(match => match.index >= 0)
+        .sort((a,b) => a.index - b.index);
+    return [...new Set(matches.map(match => match.term))];
+}
+
 export function detectExpression(sentence: string): string | undefined {
-    return patterns.find(({pattern}) => pattern.test(sentence))?.term;
+    return detectExpressions(sentence)[0];
 }
 
 export function suggestTerms(sentence: string): string[] {
