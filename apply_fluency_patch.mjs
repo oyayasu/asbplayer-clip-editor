@@ -41,7 +41,6 @@ for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx', 'FluencyPh
 
     const smartPanel = `                        {settings.noteType === fluencyNoteTypeName && (
                             <SmartDefinitionPanel
-                                sentence={text}
                                 word={word}
                                 values={{
                                     PartOfSpeech: customFieldValues.PartOfSpeech || '',
