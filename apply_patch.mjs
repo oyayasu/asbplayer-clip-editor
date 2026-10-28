@@ -37,7 +37,7 @@ for (const line of [
 
 replace(
     "    root: {\n        '& .MuiTextField-root': {\n            marginBottom: theme.spacing(1),\n        },\n    },",
-    "    root: {\n        display: 'grid',\n        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',\n        gap: theme.spacing(1.5, 2.5),\n        '& > *': { minWidth: 0 },\n        '& .MuiTextField-root': { marginBottom: theme.spacing(1) },\n        [theme.breakpoints.down('sm')]: { gridTemplateColumns: '1fr' },\n    },",
+    "    root: {\n        zoom: 0.9,\n        width: '111.111%',\n        display: 'grid',\n        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',\n        gap: theme.spacing(1.5, 2.5),\n        '& > *': { minWidth: 0 },\n        '& .MuiTextField-root': { marginBottom: theme.spacing(1) },\n        [theme.breakpoints.down('sm')]: { gridTemplateColumns: '1fr' },\n    },",
     'Layout em duas colunas'
 );
 
