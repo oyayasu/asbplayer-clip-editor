@@ -12,7 +12,7 @@ const changeOnce = (text, before, after, label) => {
     return text.replace(before, after);
 };
 
-for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx', 'FluencyPhraseMatcher.ts']) {
+for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx']) {
     const target = path.join(repo, 'common/components', name);
     if (fs.existsSync(target)) throw new Error(name + ' already present, refusing to patch twice.');
     fs.copyFileSync(path.join(process.cwd(), name), target);
