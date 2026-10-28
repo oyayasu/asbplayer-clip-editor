@@ -17,7 +17,6 @@ on:
       - 'apply_bridge_patch.mjs'
       - 'RemoteDictionary.ts'
       - 'apply_remote_patch.mjs'
-      - 'FluencyPhraseMatcher.ts'
       - 'tests/**'
       - '.github/workflows/build.yml'
 
@@ -80,11 +79,11 @@ jobs:
       - name: Verificar ausência de glossário local e fallback
         run: node tests/check-remote-only.mjs asbplayer
 
+      - name: Testar entrada livre sem glossário
+        run: node tests/check-arbitrary-terms.mjs asbplayer
+
       - name: Testar integração AnkiConnect
         run: node tests/check-anki-connect.mjs asbplayer
-
-      - name: Testar reconhecimento de expressões
-        run: node --experimental-strip-types tests/check-phrase-matcher.mjs
 
       - name: Testar campos do modelo multi-expressões
         run: node tests/check-multi-card.mjs asbplayer
