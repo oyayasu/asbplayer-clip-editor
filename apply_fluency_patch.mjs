@@ -12,7 +12,7 @@ const changeOnce = (text, before, after, label) => {
     return text.replace(before, after);
 };
 
-for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx']) {
+for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx', 'FluencyPhraseMatcher.ts']) {
     const target = path.join(repo, 'common/components', name);
     if (fs.existsSync(target)) throw new Error(name + ' already present, refusing to patch twice.');
     fs.copyFileSync(path.join(process.cwd(), name), target);
@@ -28,6 +28,11 @@ for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx']) {
         'AnkiDialog imports'
     );
 
+    s = changeOnce(s, "    const [definition, setDefinition] = useState<string>('');", "    const [definition, setDefinition] = useState<string>('');\n    const [allowIncompleteFluency, setAllowIncompleteFluency] = useState(false);", "Optional incomplete card confirmation");
+    s = changeOnce(s, "    const [selectedSubtitles, setSelectedSubtitles] = useState<SubtitleModel[]>([]);", "    const [selectedSubtitles, setSelectedSubtitles] = useState<SubtitleModel[]>([]);\n    useEffect(() => setAllowIncompleteFluency(false), [card.subtitle]);", "Reset incomplete confirmation");
+    s = changeOnce(s, "    const handleProceed = useCallback(", "    const fluencyIncomplete = settings.noteType === fluencyNoteTypeName &&\n        (!word.trim() || !customFieldValues.EnglishDefinition?.trim() || !customFieldValues.Portuguese?.trim());\n    const fluencyExportBlocked = fluencyIncomplete && !allowIncompleteFluency;\n\n    const handleProceed = useCallback(", "Check required fluency fields");
+    s = changeOnce(s, "        async (mode: AnkiExportMode, noteIds?: number[]) => {\n            if (mode === 'updateSpecific') {", "        async (mode: AnkiExportMode, noteIds?: number[]) => {\n            if (fluencyExportBlocked) return;\n            if (mode === 'updateSpecific') {", "Block unconfirmed incomplete export");
+    s = changeOnce(s, "        [buildExportParams, onProceed]\n    );", "        [buildExportParams, onProceed, fluencyExportBlocked]\n    );", "Export callback dependencies");
     s = changeOnce(s,
         '{model.custom && model.field.display && (',
         '{model.custom && model.field.display && !(settings.noteType === fluencyNoteTypeName && fluencyCustomFields.some((name) => name === model.key)) && (',
@@ -49,6 +54,17 @@ for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx']) {
                                     setCustomFieldValues((current) => ({ ...current, ...values }))
                                 }
                             />
+                        )}
+                        {settings.noteType === fluencyNoteTypeName && fluencyIncomplete && (
+                            <Alert severity="warning" sx={{ gridColumn: '1 / -1' }}
+                                action={
+                                    <Button size="small" color="inherit" onClick={() => setAllowIncompleteFluency((v) => !v)}>
+                                        {allowIncompleteFluency ? 'Cancelar' : 'Exportar incompleto'}
+                                    </Button>
+                                }>
+                                Este cartão ainda não tem expressão, definição em inglês e significado em português.
+                                Escolha um termo e confira os campos ou autorize explicitamente a exportação incompleta.
+                            </Alert>
                         )}
 `;
     s = changeOnce(s, '                        <ListField\n                            variant="filled"\n                            label="Tags"',
