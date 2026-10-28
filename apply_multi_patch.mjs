@@ -48,7 +48,6 @@ for(const file of ['FluencyMultiNoteType.ts','MultiVocabularyPanel.tsx']){
     [
       "                        {settings.noteType === multiNoteTypeName && (",
       "                            <MultiVocabularyPanel",
-      "                                sentence={text}",
       "                                word={word}",
       "                                values={customFieldValues}",
       "                                onWordChange={setWord}",
