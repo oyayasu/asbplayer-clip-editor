@@ -46,13 +46,17 @@ const pickIpa = (sounds: unknown): string => {
 
 export function parseWiktApiEntry(data: unknown): WiktApiSense[] {
     if (!data || typeof data !== 'object') return [];
-    const payload = data as { entries?: unknown };
-    if (!Array.isArray(payload.entries)) return [];
+    const payload = data as { entries?: unknown; definitions?: unknown };
+    const records = Array.isArray(payload.definitions) ? payload.definitions : payload.entries;
+    if (!Array.isArray(records)) return [];
 
     const senses: WiktApiSense[] = [];
     const seen = new Set<string>();
-    for (const raw of payload.entries as WiktEntry[]) {
-        if (!raw || raw.lang_code !== 'en' || !Array.isArray(raw.senses)) continue;
+    for (const raw of records as WiktEntry[]) {
+        // The full /word endpoint currently omits lang_code/pos in its compact
+        // entries, despite filtering by ?lang=en. The /definitions endpoint
+        // includes them. Reject explicit non-English codes in either format.
+        if (!raw || (raw.lang_code && raw.lang_code !== 'en') || !Array.isArray(raw.senses)) continue;
         const pos = text(raw.pos) || 'expression';
         const ipa = pickIpa(raw.sounds);
         for (const entry of raw.senses) {
@@ -80,22 +84,46 @@ export function parseWiktApiEntry(data: unknown): WiktApiSense[] {
     return senses;
 }
 
-export async function fetchWiktApi(term: string): Promise<WiktApiSense[]> {
-    const input = term.trim();
-    if (!input || input.length > 160) return [];
+const fetchResource = async (url: string): Promise<unknown> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 4800);
     try {
-        const url = 'https://api.wiktapi.dev/v1/en/word/' +
-            encodeURIComponent(input) + '?lang=en';
         const response = await fetch(url, {
             signal: controller.signal,
             headers: { accept: 'application/json' },
         });
-        if (response.status === 404) return [];
+        if (response.status === 404) return null;
         if (!response.ok) throw Error('WiktApi HTTP ' + response.status);
-        return parseWiktApiEntry(await response.json());
+        return await response.json();
     } finally {
         clearTimeout(timer);
     }
+};
+
+export async function fetchWiktApi(term: string): Promise<WiktApiSense[]> {
+    const input = term.trim();
+    if (!input || input.length > 160) return [];
+    const base = 'https://api.wiktapi.dev/v1/en/word/' +
+        encodeURIComponent(input);
+
+    // /definitions includes the part-of-speech (pos) field, while
+    // /word includes pronunciation sounds. Both are filtered to English.
+    const results = await Promise.allSettled([
+        fetchResource(base + '/definitions?lang=en'),
+        fetchResource(base + '?lang=en'),
+    ]);
+    const definitions = results[0].status === 'fulfilled'
+        ? parseWiktApiEntry(results[0].value) : [];
+    const fullEntry = results[1].status === 'fulfilled'
+        ? parseWiktApiEntry(results[1].value) : [];
+
+    const preferred = definitions.length ? definitions : fullEntry;
+    const ipa = fullEntry.find(sense => sense.ipa)?.ipa || '';
+    if (!preferred.length && results.every(result => result.status === 'rejected')) {
+        throw Error('Os endpoints do WiktApi não responderam.');
+    }
+    return preferred.map(sense => ({
+        ...sense,
+        ipa: sense.ipa || ipa,
+    }));
 }
