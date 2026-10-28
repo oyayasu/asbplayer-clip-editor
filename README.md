@@ -2,6 +2,19 @@
 
 Extensão personalizada para criar cartões no Anki com áudio real, imagem da cena e definições.
 
+## Atualização de preenchimento v3.2 — consultas exclusivamente online
+
+A partir da v3.2, **nenhum significado ou IPA é retirado de um glossário embutido**.
+A extensão consulta serviços externos ao receber uma palavra ou expressão:
+- **Wiktionary** para definições e classe gramatical;
+- **Datamuse** como fonte independente de definições e pronúncia IPA quando disponível;
+- **Free Dictionary API** como alternativa adicional;
+- **MyMemory** para tradução ao português.
+
+As fontes de dicionário são consultadas de forma independente; se uma responder com HTTP 502, as demais ainda podem preencher o cartão. O texto da legenda pode ser enviado ao dicionário para ajudar a escolher o sentido. Se não houver resposta confiável, o campo permanece vazio com uma mensagem explícita — a extensão não inventa definições.
+
+O botão **Buscar novamente** permite refazer a consulta. Por depender de serviços públicos gratuitos, não é possível garantir resultado para toda palavra, expressão regional ou frase idiomática. As consultas são feitas pela ponte interna da extensão para evitar bloqueios de rede em vídeos da Netflix e YouTube. Seus cartões anteriores não são reescritos.
+
 ## Novo: vários termos no mesmo cartão
 
 A atualização do **asbplayer Fluency Multi v1** acrescenta um segundo tipo de nota no Anki; não modifica cartões antigos.
@@ -22,7 +35,7 @@ Exemplo: **“He is such a sore loser. You heard obviously that I mopped the flo
 - Editor de trecho ampliado com começo/fim em milissegundos, controles de ±0.1s e ±0.5s e legendas completas.
 - Modelo de Anki **asbplayer Fluency Audio v1**: frente com imagem e áudio original; verso com frase, palavra, classe gramatical, IPA (quando disponível), definição em inglês e significado em português.
 - Botão **Configurar modelo automaticamente** nas configurações Anki do asbplayer: usa AnkiConnect e cria o tipo de nota sem substituir os tipos anteriores.
-- Editor **Vocabulário automático**: escolha uma palavra da legenda ou escreva uma expressão no campo Word. Consulta automática no Dictionary API e tradução MyMemory; expressões comuns também têm glossário incorporado.
+- Editor **Vocabulário automático**: escolha uma palavra da legenda ou escreva uma expressão no campo Word. Consulta automática no Dictionary API e tradução MyMemory; as definições vêm de dicionários online.
 - Campos individuais editáveis para revisar significados antes da exportação. Os dados não encontrados ficam vazios; traduções automáticas não são definitivas.
 
 ## Como instalar no Brave
@@ -35,7 +48,7 @@ Exemplo: **“He is such a sore loser. You heard obviously that I mopped the flo
 
 ## Privacidade e precisão
 
-As palavras/expressões consultadas são enviadas aos provedores [Free Dictionary API](https://dictionaryapi.dev/) e [MyMemory](https://mymemory.translated.net/), exceto as expressões cobertas pelo glossário local. Isso depende de internet. O MyMemory tem limites diários para uso anônimo. A classe gramatical ou primeira definição do dicionário pode não corresponder ao contexto; **revise sempre**. O IPA pode estar indisponível para expressões completas.
+As palavras/expressões consultadas são enviadas aos provedores [Free Dictionary API](https://dictionaryapi.dev/) e [MyMemory](https://mymemory.translated.net/), inclusive para palavras comuns; não existe mais glossário local de definições. Isso depende de internet. O MyMemory tem limites diários para uso anônimo. A classe gramatical ou primeira definição do dicionário pode não corresponder ao contexto; **revise sempre**. O IPA pode estar indisponível para expressões completas.
 
 ## Compilação
 
