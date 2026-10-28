@@ -16,7 +16,7 @@ assert(controller.includes("message.body?.action === 'fluencyLookup'"));
 assert(controller.includes("service !== 'dictionary' && service !== 'translation'"));
 assert(controller.includes("api.dictionaryapi.dev/api/v2/entries/en/"));
 assert(controller.includes("api.mymemory.translated.net/get?"));
-assert(one.includes("fluencyGetJson('dictionary', term, signal, viaBridge, sentence)"));
+assert(one.includes("fluencyGetJson('dictionary', term, signal, viaBridge)"));
 assert(multi.includes('translationLookup(term,controller.signal,fluencyLookup)'));
 assert(transport.includes('if (viaBridge)'));
 console.log('OK: browser-frame request goes over original asbplayer Anki bridge, only to approved dictionary providers.');
