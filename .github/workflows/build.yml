@@ -76,6 +76,9 @@ jobs:
       - name: Instalar dicionários online com fallback
         run: node apply_remote_patch.mjs asbplayer
 
+      - name: Validar respostas reais de dicionários online
+        run: node --experimental-strip-types tests/live-dictionary-smoke.mjs
+
       - name: Verificar ausência de glossário local e fallback
         run: node tests/check-remote-only.mjs asbplayer
 
