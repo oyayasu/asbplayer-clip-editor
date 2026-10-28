@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const root=process.argv[2]||'asbplayer';
+const background=readFileSync(root+'/extension/src/entrypoints/background.ts','utf8');
+const transport=readFileSync(root+'/common/components/FluencyLookupTransport.ts','utf8');
+const definitions=readFileSync(root+'/common/components/SmartDefinitionPanel.tsx','utf8');
+const multi=readFileSync(root+'/common/components/MultiVocabularyPanel.tsx','utf8');
+assert(background.includes("request.command !== 'asbplayer-fluency-lookup'"));
+assert(background.includes("sender.id !== browser.runtime.id"));
+assert(background.includes("service !== 'dictionary' && service !== 'translation'"));
+assert(background.includes('api.dictionaryapi.dev/api/v2/entries/en/'));
+assert(background.includes('api.mymemory.translated.net/get?'));
+assert(!background.includes("fetch(request.url"),'Never accept arbitrary URLs');
+assert(transport.includes("runtime.sendMessage({command:'asbplayer-fluency-lookup'"));
+assert(definitions.includes("fluencyGetJson('dictionary'"));
+assert(definitions.includes("fluencyGetJson('translation'"));
+assert(multi.includes('Buscar novamente'));
+assert(multi.includes('translationError'));
+console.log('OK: fixed trusted providers, background transport and visible retry/error handling.');
