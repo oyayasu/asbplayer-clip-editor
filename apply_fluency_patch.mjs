@@ -151,4 +151,18 @@ for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx']) {
     save(filename, s);
 }
 
+
+// D) The extension's sandbox POST proxy rejects AnkiConnect actions unless
+//    included in its security allowlist. These two were previously absent:
+//    as a result, the one-click setup failed with "Invalid request".
+{
+    const filename = 'extension/src/handlers/video/http-post-handler.ts';
+    let s = load(filename);
+    s = changeOnce(s,
+        "    'modelFieldNames',",
+        "    'modelFieldNames',\n    'createModel',\n    'createDeck',",
+        'AnkiConnect whitelist for the dedicated setup actions');
+    save(filename, s);
+}
+
 console.log('Fluency card template, auto-lookup UI, Anki mappings and API permissions installed.');
