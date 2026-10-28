@@ -2,11 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { detectExpression, suggestTerms } from './FluencyPhraseMatcher';
 import { fluencyGetJson } from './FluencyLookupTransport';
 import type { FluencyBridgeLookup } from './FluencyLookupTransport';
 
@@ -18,10 +16,8 @@ export type FluencyFields = {
 };
 
 type Props = {
-    sentence: string;
     word: string;
     values: FluencyFields;
-    onWordChange: (value: string) => void;
     onFieldsChange: (value: FluencyFields) => void;
     fluencyLookup?: FluencyBridgeLookup;
 };
@@ -35,9 +31,9 @@ type DictionaryEntry = {
     meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string; example?: string }> }>;
 };
 
-export const dictionaryLookup = async (term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup, sentence=''): Promise<Partial<FluencyFields>> => {
-    if (!/^[a-z][a-z '-]{0,75}$/i.test(term)) return {};
-    const data: unknown = await fluencyGetJson('dictionary', term, signal, viaBridge, sentence);
+export const dictionaryLookup = async (term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup): Promise<Partial<FluencyFields>> => {
+    if (!term.trim() || term.length > 160) return {};
+    const data: unknown = await fluencyGetJson('dictionary', term, signal, viaBridge);
     if (!Array.isArray(data)) return {};
     const entry = data[0] as DictionaryEntry | undefined;
     if (!entry) return {};
@@ -58,7 +54,7 @@ export const translationLookup = async (term: string, signal: AbortSignal, viaBr
     return text && text.toLowerCase() !== term.toLowerCase() ? text : '';
 };
 
-export default function SmartDefinitionPanel({ sentence, word, values, onWordChange, onFieldsChange, fluencyLookup }: Props) {
+export default function SmartDefinitionPanel({ word, values, onFieldsChange, fluencyLookup }: Props) {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [retry, setRetry] = useState(0);
@@ -67,24 +63,13 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
     const lastAuto = useRef<FluencyFields>(emptyFields);
     useEffect(() => { latest.current = { values, onFieldsChange }; }, [values, onFieldsChange]);
 
-    const tokens = useMemo(() => suggestTerms(sentence), [sentence]);
-
-    // The last version only looked up a word if the user manually filled Word.
-    // When a known idiom or phrase occurs in the subtitle, select it automatically.
-    // Never guess for an unknown sentence: offer explicit choices instead.
-    useEffect(() => {
-        if (word.trim()) return;
-        const expression = detectExpression(sentence);
-        if (expression) onWordChange(expression);
-    }, [sentence, word, onWordChange]);
-
     const lookup = useCallback(async (term: string, signal: AbortSignal) => {
         const key = normalize(term);
-        if (!key || key.length > 80) return;
+        if (!key || key.length > 160) return;
         setLoading(true);
         setMessage('');
         try {
-            const dictionaryPromise: Promise<Partial<FluencyFields>> = dictionaryLookup(key, signal, fluencyLookup, sentence);
+            const dictionaryPromise: Promise<Partial<FluencyFields>> = dictionaryLookup(key, signal, fluencyLookup);
             const translationPromise: Promise<string> = translationLookup(key, signal, fluencyLookup);
 
             const [dictResult, transResult] = await Promise.allSettled([dictionaryPromise, translationPromise]);
@@ -145,19 +130,8 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
                 </Button>
             </Box>
             <Typography variant="caption" color="text.secondary">
-                Uma expressão conhecida é selecionada automaticamente. Para estudar outra palavra, clique abaixo ou preencha Word. Revise os significados antes de salvar.
+                Digite qualquer palavra, phrasal verb ou expressão no campo Word. O preenchimento começa automaticamente.
             </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, my: 1.25 }}>
-                {tokens.map(token => (
-                    <Chip key={token} label={token} size="small" variant={normalize(token) === current ? 'filled' : 'outlined'}
-                        color={normalize(token) === current ? 'primary' : 'default'} onClick={() => onWordChange(token)}/>
-                ))}
-            </Box>
-            {!word.trim() && (
-                <Alert severity="warning" sx={{ mb: 1.5 }}>
-                    Escolha abaixo uma palavra ou expressão da cena. Não é possível saber com segurança qual termo você quer aprender sem uma seleção.
-                </Alert>
-            )}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
                 <TextField label="Classe gramatical" value={values.PartOfSpeech} onChange={e => setField('PartOfSpeech', e.target.value)} size="small" fullWidth placeholder="phrasal verb"/>
                 <TextField label="IPA (quando disponível)" value={values.IPA} onChange={e => setField('IPA', e.target.value)} size="small" fullWidth placeholder="/ˈfɪɡjɚ/"/>
@@ -166,7 +140,7 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
             </Box>
             {message && <Alert severity="info" sx={{ mt: 1.5, py: 0.25 }}>{message}</Alert>}
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                Palavras selecionadas podem ser consultadas em serviços externos (Dictionary API e MyMemory). Traduções e IPA exigem revisão.
+                Preenchido a partir de dicionários e tradução online, não de listas pré-definidas. Revise os resultados antes de exportar.
             </Typography>
         </Box>
     );
