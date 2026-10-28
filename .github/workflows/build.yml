@@ -12,6 +12,8 @@ on:
       - 'MultiVocabularyPanel.tsx'
       - 'FluencyMultiNoteType.ts'
       - 'apply_multi_patch.mjs'
+      - 'FluencyLookupTransport.ts'
+      - 'apply_lookup_patch.mjs'
       - 'FluencyPhraseMatcher.ts'
       - 'tests/**'
       - '.github/workflows/build.yml'
@@ -56,6 +58,12 @@ jobs:
 
       - name: Aplicar editor de múltiplas expressões
         run: node apply_multi_patch.mjs asbplayer
+
+      - name: Aplicar consultas de dicionários em background
+        run: node apply_lookup_patch.mjs asbplayer
+
+      - name: Testar as consultas de dicionário
+        run: node tests/check-background-lookup.mjs asbplayer
 
       - name: Testar integração AnkiConnect
         run: node tests/check-anki-connect.mjs asbplayer
