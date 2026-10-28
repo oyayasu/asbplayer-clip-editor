@@ -40,13 +40,8 @@ async function wiktionary(term:string):Promise<Entry|null>{
   })).filter((m:Meaning)=>m.definitions.length>0);
   return meanings.length?{meanings,phonetics:[],provider:'Wiktionary'}:null;
 }
-async function datamuse(term:string, sentence:string):Promise<Entry|null>{
+async function datamuse(term:string):Promise<Entry|null>{
   const params=new URLSearchParams({sp:term,md:'dpr',ipa:'1',max:'10'});
-  // The target sentence provides adjacent-word context to the ranking service.
-  const tokens=sentence.split(/\s+/).map(t=>t.replace(/[^a-z']/gi,'')).filter(Boolean);
-  const index=tokens.findIndex(t=>t.toLowerCase()===term.split(' ')[0]?.toLowerCase());
-  if(index>0) params.set('lc',tokens[index-1]);
-  if(index>=0&&index+term.split(' ').length<tokens.length)params.set('rc',tokens[index+term.split(' ').length]);
   const data=await timeoutFetch('https://api.datamuse.com/words?'+params.toString());
   if(!Array.isArray(data))return null;
   const exact=data.find((v:any)=>normalizeTerm(String(v.word||''))===normalizeTerm(term));
@@ -64,7 +59,8 @@ async function datamuse(term:string, sentence:string):Promise<Entry|null>{
     m.definitions.push({definition});
   }
   const pron=Array.isArray(exact.tags)?exact.tags.find((t:any)=>typeof t==='string'&&t.startsWith('pron:')):undefined;
-  const phonetics=pron?[{text:String(pron).slice(5)}]:[];
+  const pronunciation=pron?String(pron).slice(5).trim():'';
+  const phonetics=pronunciation?[{text:pronunciation.startsWith('/')?pronunciation:'/'+pronunciation+'/'}]:[];
   return meanings.length||phonetics.length?{meanings,phonetics,provider:'Datamuse'}:null;
 }
 async function freeDictionary(term:string):Promise<Entry|null>{
@@ -84,22 +80,8 @@ async function freeDictionary(term:string):Promise<Entry|null>{
     provider:'Free Dictionary API'
   };
 }
-function chooseMeaning(meanings:Meaning[],sentence:string):Meaning[]{
-  if(meanings.length<2)return meanings;
-  const context=new Set(sentence.toLowerCase().match(/[a-z]{4,}/g)||[]);
-  const common=new Set(['this','that','with','have','they','there','which','just','from','what','will']);
-  // The index's ordering remains the primary ranking signal.
-  // Only mild contextual overlap can refine among the first few senses.
-  const score=(m:Meaning,i:number)=>{
-    const examples=m.definitions.slice(0,3).flatMap(d=>(d.example||'').toLowerCase().match(/[a-z]{4,}/g)||[]);
-    const overlaps=examples.filter(w=>context.has(w)&&!common.has(w)).length;
-    return overlaps*0.7-Math.min(i,10)*0.8;
-  };
-  return meanings.map((m,i)=>({m,i,score:score(m,i)}))
-    .sort((a,b)=>b.score-a.score).map(v=>v.m);
-}
-export async function resolveRemoteDictionary(term:string,sentence:string):Promise<any>{
-  const [wik,dat]=await Promise.allSettled([wiktionary(term),datamuse(term,sentence)]);
+export async function resolveRemoteDictionary(term:string):Promise<any>{
+  const [wik,dat]=await Promise.allSettled([wiktionary(term),datamuse(term)]);
   const sources:Entry[]=[];
   if(wik.status==='fulfilled'&&wik.value)sources.push(wik.value);
   if(dat.status==='fulfilled'&&dat.value)sources.push(dat.value);
@@ -114,6 +96,6 @@ export async function resolveRemoteDictionary(term:string,sentence:string):Promi
     if(reasons.length===2)throw Error('Dicionários online indisponíveis ('+reasons.slice(0,2).join('; ')+')');
     return [];
   }
-  return [{word:term, meanings:chooseMeaning(allMeanings,sentence), phonetics:phonetic?[phonetic]:[],
+  return [{word:term, meanings:allMeanings, phonetics:phonetic?[phonetic]:[],
     provider:sources.map(s=>s.provider).join(' + ')}];
 }
