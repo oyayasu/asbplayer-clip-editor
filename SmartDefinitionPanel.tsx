@@ -8,6 +8,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { detectExpression, suggestTerms } from './FluencyPhraseMatcher';
 import { fluencyGetJson } from './FluencyLookupTransport';
+import type { FluencyBridgeLookup } from './FluencyLookupTransport';
 
 export type FluencyFields = {
     PartOfSpeech: string;
@@ -22,6 +23,7 @@ type Props = {
     values: FluencyFields;
     onWordChange: (value: string) => void;
     onFieldsChange: (value: FluencyFields) => void;
+    fluencyLookup?: FluencyBridgeLookup;
 };
 
 const emptyFields: FluencyFields = { PartOfSpeech: '', IPA: '', EnglishDefinition: '', Portuguese: '' };
@@ -58,9 +60,9 @@ type DictionaryEntry = {
     meanings?: Array<{ partOfSpeech?: string; definitions?: Array<{ definition?: string; example?: string }> }>;
 };
 
-export const dictionaryLookup = async (term: string, signal: AbortSignal): Promise<Partial<FluencyFields>> => {
+export const dictionaryLookup = async (term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup): Promise<Partial<FluencyFields>> => {
     if (!/^[a-z][a-z '-]{0,75}$/i.test(term)) return {};
-    const data: unknown = await fluencyGetJson('dictionary', term, signal);
+    const data: unknown = await fluencyGetJson('dictionary', term, signal, viaBridge);
     if (!Array.isArray(data)) return {};
     const entry = data[0] as DictionaryEntry | undefined;
     if (!entry) return {};
@@ -74,14 +76,14 @@ export const dictionaryLookup = async (term: string, signal: AbortSignal): Promi
     };
 };
 
-export const translationLookup = async (term: string, signal: AbortSignal): Promise<string> => {
-    const data: any = await fluencyGetJson('translation', term, signal);
+export const translationLookup = async (term: string, signal: AbortSignal, viaBridge?: FluencyBridgeLookup): Promise<string> => {
+    const data: any = await fluencyGetJson('translation', term, signal, viaBridge);
     if (Number(data.responseStatus) !== 200) throw new Error('translation unavailable');
     const text = String(data.responseData?.translatedText || '').trim();
     return text && text.toLowerCase() !== term.toLowerCase() ? text : '';
 };
 
-export default function SmartDefinitionPanel({ sentence, word, values, onWordChange, onFieldsChange }: Props) {
+export default function SmartDefinitionPanel({ sentence, word, values, onWordChange, onFieldsChange, fluencyLookup }: Props) {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [retry, setRetry] = useState(0);
@@ -109,9 +111,9 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
         try {
             const known = curated[key];
             const dictionaryPromise: Promise<Partial<FluencyFields>> = known
-                ? Promise.resolve(known) : dictionaryLookup(key, signal);
+                ? Promise.resolve(known) : dictionaryLookup(key, signal, fluencyLookup);
             const translationPromise: Promise<string> = known
-                ? Promise.resolve(known.Portuguese) : translationLookup(key, signal);
+                ? Promise.resolve(known.Portuguese) : translationLookup(key, signal, fluencyLookup);
 
             const [dictResult, transResult] = await Promise.allSettled([dictionaryPromise, translationPromise]);
             if (signal.aborted) return;
@@ -150,7 +152,7 @@ export default function SmartDefinitionPanel({ sentence, word, values, onWordCha
         } finally {
             if (!signal.aborted) setLoading(false);
         }
-    }, []);
+    }, [fluencyLookup]);
 
     useEffect(() => {
         if (!autoSearch || !word.trim()) return;
