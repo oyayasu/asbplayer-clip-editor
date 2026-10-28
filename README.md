@@ -2,6 +2,16 @@
 
 Extensão personalizada do asbplayer para montar cartões no Anki com áudio e imagem originais de filmes, séries e vídeos, com vários termos no mesmo cartão.
 
+## Correção de consulta (v3.5)
+
+O asbplayer transmite respostas do Anki via uma ponte que acrescenta `messageId` aos objetos. As definições online chegam como listas e estavam sendo transformadas em objetos antes da leitura, deixando classe gramatical, definição e IPA em branco enquanto a tradução ainda aparecia.
+
+A resposta do dicionário agora é encapsulada num objeto `fluencyDictionary` e desembrulhada no editor; isso preserva todos os significados e a pronúncia. Um teste de regressão reproduz a conversão incorreta anterior e valida a ida e volta pela ponte.
+
+As três fontes de dicionário são consultadas independentemente, com erros explícitos quando todas falham. Dados ARPAbet não são apresentados como IPA.
+
+As consultas seguem exclusivamente online, sem IA, sem palavras pré-cadastradas e sem dependência do texto da legenda. A compilação é automatizada; ainda é necessário testar o comportamento no Brave localmente.
+
 ## Preenchimento automático, sem IA e sem listas prontas
 
 1. Abra uma cena no editor do asbplayer.
