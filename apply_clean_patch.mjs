@@ -108,11 +108,9 @@ for(const [file,destination] of [
    clip+"                        <ListField\n                            variant=\"filled\"\n                            label=\"Tags\"",
    'insert clean editor and clip');
  s=swap(s,
-   "{settings.noteType !== cleanModelName && timestampInterval && timestampBoundaryInterval && timestampMarks && (",
-   "{settings.noteType !== cleanModelName && timestampInterval && timestampBoundaryInterval && timestampMarks && (",
-   'already guarded outside selection');
- // The previous replace is intentionally a no-op if a conditional guard was pre-applied;
- // the current source may still have the unconditional selection.
+   "                {timestampInterval && timestampBoundaryInterval && timestampMarks && (\n                    <ClipSelectionPanel",
+   "                {settings.noteType !== cleanModelName && timestampInterval && timestampBoundaryInterval && timestampMarks && (\n                    <ClipSelectionPanel",
+   'hide duplicated clip selection outside clean editor');
  save(file,s);
 }
 {
