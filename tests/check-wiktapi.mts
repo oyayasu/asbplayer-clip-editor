@@ -46,6 +46,19 @@ if(process.argv.includes('--live')){
     try{
       const response=await fetch(url,{signal:AbortSignal.timeout(7000)});
       const body=await response.json();
+      if(url.includes('/word/run?lang=en')){
+        const entries=Array.isArray(body.entries)?body.entries:[];
+        console.log('LIVE ENTRY SHAPE',JSON.stringify({
+          count:entries.length,
+          keys:entries[0]?Object.keys(entries[0]):[],
+          entries:entries.slice(0,4).map((e:any)=>({
+            lang:e.lang,lang_code:e.lang_code,pos:e.pos,
+            sense_keys:e.senses?.[0]?Object.keys(e.senses[0]):[],
+            glosses:e.senses?.[0]?.glosses
+          })),
+          codes:[...new Set(entries.map((e:any)=>String(e.lang_code)))].slice(0,15)
+        }).slice(0,2200));
+      }
       console.log('LIVE DIAGNOSTIC',response.status,url,
         JSON.stringify(body).slice(0,550));
     }catch(e){console.log('LIVE DIAGNOSTIC error',url,String(e));}
