@@ -127,7 +127,7 @@ export default function MultiVocabularyPanel({sentence, word, values, onWordChan
     };
 
     const removeTerm = (index:number) => {
-        const all=terms.map((text,i)=>({
+        const all: Array<Record<string,string>> = terms.map((text,i)=>({
             text,...Object.fromEntries(fieldNames.map(field=>[field,values[nameFor(i,field)] || '']))
         })).filter((_item,i)=>i!==index).filter(item=>item.text.trim());
         const patch:Record<string,string>={};
