@@ -18,7 +18,7 @@ assert(settings.includes('anki.createModel(multiNoteType'));
 assert(settings.includes('customAnkiFields: mapped'));
 assert(panel.includes('detectExpressions(sentence)'));
 assert(panel.includes("nameFor(index,'Word')"));
-assert(panel.includes("dictionaryLookup(term,controller.signal,fluencyLookup)"));
+assert(panel.includes("dictionaryLookup(term,controller.signal,fluencyLookup,sentence)"));
 assert(panel.includes("translationLookup(term,controller.signal,fluencyLookup)"));
 assert(phrase.includes('export function detectExpressions'));
 assert(phrase.includes("'mop the floor with someone'"));
