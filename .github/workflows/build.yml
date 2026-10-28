@@ -9,6 +9,7 @@ on:
       - 'apply_fluency_patch.mjs'
       - 'FluencyNoteType.ts'
       - 'SmartDefinitionPanel.tsx'
+      - 'FluencyPhraseMatcher.ts'
       - 'tests/**'
       - '.github/workflows/build.yml'
 
@@ -52,6 +53,9 @@ jobs:
 
       - name: Testar integração AnkiConnect
         run: node tests/check-anki-connect.mjs asbplayer
+
+      - name: Testar reconhecimento de expressões
+        run: node --experimental-strip-types tests/check-phrase-matcher.mjs
 
       - name: Instalar dependências
         working-directory: asbplayer
