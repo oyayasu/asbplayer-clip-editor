@@ -81,21 +81,37 @@ async function freeDictionary(term:string):Promise<Entry|null>{
   };
 }
 export async function resolveRemoteDictionary(term:string):Promise<any>{
-  const [wik,dat]=await Promise.allSettled([wiktionary(term),datamuse(term)]);
-  const sources:Entry[]=[];
-  if(wik.status==='fulfilled'&&wik.value)sources.push(wik.value);
-  if(dat.status==='fulfilled'&&dat.value)sources.push(dat.value);
-  if(sources.every(s=>s.meanings.length===0)){
-    try {const free=await freeDictionary(term);if(free)sources.push(free);}catch{}
-  }
-  const allMeanings=sources.flatMap(s=>s.meanings);
-  const phonetic=sources.flatMap(s=>s.phonetics).find(p=>p.text.startsWith('/'))||
-                 sources.flatMap(s=>s.phonetics)[0];
+  // Every source is independent. Previously Free Dictionary was tried only if
+  // Wiktionary and Datamuse both returned no meanings. That also discarded its
+  // pronunciation when either of them returned a definition.
+  const providers = ['Wiktionary', 'Datamuse', 'Free Dictionary API'];
+  const results=await Promise.allSettled([wiktionary(term),datamuse(term),freeDictionary(term)]);
+  const sources:Entry[]=results.flatMap(result =>
+    result.status==='fulfilled' && result.value ? [result.value] : []);
+
+  const allMeanings=sources.flatMap(s=>s.meanings)
+    .filter(m => m.definitions.some(d=>Boolean(d.definition.trim())));
+  // Datamuse sometimes returns ARPAbet despite requesting IPA. ARPAbet
+  // (e.g. "AE0 JH AH0") must never be presented as IPA.
+  const validIpa=(value:string) => {
+    const text=value.trim().replace(/^\//,'').replace(/\/$/,'');
+    if(!text || /[0-9]/.test(text) || /\b[A-Z]{2,}\b/.test(text))return false;
+    return /[\u0250-\u02AF\u1D00-\u1D7F\u02C8\u02CC\u0300-\u036F\u00E6\u00F0\u014B\u0283\u03B8]/u.test(text);
+  };
+  const rawIpa=sources.flatMap(s=>s.phonetics).find(p=>validIpa(p.text))?.text||'';
+  const ipa=rawIpa ? (rawIpa.startsWith('/')?rawIpa:'/'+rawIpa.replace(/\/$/,'')+'/') : '';
+
   if(!allMeanings.length){
-    const reasons=[wik,dat].filter(x=>x.status==='rejected').map(x=>String((x as PromiseRejectedResult).reason));
-    if(reasons.length===2)throw Error('Dicionários online indisponíveis ('+reasons.slice(0,2).join('; ')+')');
-    return [];
+    const errors=results.flatMap((result,index)=>result.status==='rejected'
+        ? [providers[index]+': '+String(result.reason)] : []);
+    const noEntries=results.flatMap((result,index)=>result.status==='fulfilled' && !result.value
+        ? [providers[index]+': sem entrada'] : []);
+    throw Error('Nenhuma definição encontrada para "'+term+'". '+
+      [...errors,...noEntries].join(' | '));
   }
-  return [{word:term, meanings:allMeanings, phonetics:phonetic?[phonetic]:[],
+
+  const primary=sources.find(s=>s.meanings.some(m=>m.definitions.some(d=>d.definition.trim())));
+  return [{word:term, meanings:primary?.meanings||allMeanings,
+    phonetics:ipa?[{text:ipa}]:[],
     provider:sources.map(s=>s.provider).join(' + ')}];
 }
