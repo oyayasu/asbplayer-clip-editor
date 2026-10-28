@@ -31,6 +31,19 @@ assert.equal(senses[0].ipa,'/hoʊld ə ɡrʌdʒ/');
 assert.equal(senses[0].source,'WiktApi / English Wiktionary');
 assert.match(senses[0].definition,/remain angry/);
 assert(!senses.some(s=>s.definition.includes('Incorrect')));
+const definitionPayload={
+  word:'run',edition:'en',
+  definitions:[
+    {lang_code:'en',pos:'verb',senses:[{glosses:['To move rapidly on foot.']}]},
+    {lang_code:'en',pos:'noun',senses:[{glosses:['An instance of running.']}]},
+    {lang_code:'fr',pos:'noun',senses:[{glosses:['Must be discarded.']}]}
+  ]
+};
+const extracted=parseWiktApiEntry(definitionPayload);
+assert.equal(extracted.length,2);
+assert.equal(extracted[0].partOfSpeech,'verb');
+assert.equal(extracted[1].partOfSpeech,'noun');
+assert(!extracted.some(s=>s.definition.includes('discarded')));
 assert.deepEqual(parseWiktApiEntry({entries:[]}),[]);
 assert.deepEqual(parseWiktApiEntry({entries:[{lang_code:'en',pos:'noun',senses:[{glosses:[]}]}]}),[]);
 
@@ -68,7 +81,7 @@ if(process.argv.includes('--live')){
     if(result.length){
       console.log('LIVE OK: '+result.length+' senses - '+result[0].definition.slice(0,90));
     }else{
-      console.log('LIVE WARNING: WiktApi returned no parsed English senses for "run".');
+      throw Error('WiktApi endpoint returned no parsed English definitions for run.');
     }
   }catch(e){
     console.log('LIVE WARNING: WiktApi unavailable - '+String(e));
