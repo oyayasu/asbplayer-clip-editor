@@ -48,7 +48,6 @@ for (const name of ['FluencyNoteType.ts', 'SmartDefinitionPanel.tsx', 'FluencyPh
                                     EnglishDefinition: customFieldValues.EnglishDefinition || '',
                                     Portuguese: customFieldValues.Portuguese || '',
                                 }}
-                                onWordChange={setWord}
                                 onFieldsChange={(values) =>
                                     setCustomFieldValues((current) => ({ ...current, ...values }))
                                 }
