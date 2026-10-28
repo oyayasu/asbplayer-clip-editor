@@ -7,6 +7,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { detectExpression, suggestTerms } from './FluencyPhraseMatcher';
+import { fluencyGetJson } from './FluencyLookupTransport';
 
 export type FluencyFields = {
     PartOfSpeech: string;
@@ -35,6 +36,9 @@ export const curated: Record<string, FluencyFields> = {
     'mop the floor with someone': { PartOfSpeech: 'idiom · informal', IPA: '', EnglishDefinition: 'To defeat someone very easily or decisively, especially in a competition.', Portuguese: 'Vencer alguém de lavada; acabar com alguém numa disputa.' },
     'take out a loan': { PartOfSpeech: 'verb phrase', IPA: '', EnglishDefinition: 'To borrow money from a lender under an agreement to repay it.', Portuguese: 'Contrair um empréstimo.' },
     'tend to': { PartOfSpeech: 'verb phrase', IPA: '', EnglishDefinition: 'To usually behave in a particular way or be likely to do something.', Portuguese: 'Costumar; ter tendência a.' },
+    'procrastinate': { PartOfSpeech: 'verb', IPA: '/proʊˈkræstəneɪt/', EnglishDefinition: 'To delay doing something that needs to be done, often because it is unpleasant or difficult.', Portuguese: 'Procrastinar; adiar uma tarefa que deveria ser feita.' },
+    'mopped': { PartOfSpeech: 'verb (past tense)', IPA: '', EnglishDefinition: 'Past tense of mop: to clean a floor with a mop. In “mopped the floor with him”, it means to defeat him decisively.', Portuguese: 'Passado de mop (passar pano). Na expressão “mopped the floor with him”, significa vencer alguém de lavada.' },
+    'sore': { PartOfSpeech: 'adjective', IPA: '/sɔr/', EnglishDefinition: 'Painful or aching; figuratively, resentful or upset about something.', Portuguese: 'Dolorido; figurativamente, ressentido ou incomodado.' }
     'jump bad': { PartOfSpeech: 'slang (AAVE)', IPA: '', EnglishDefinition: 'To act aggressively or confrontationally toward another person.', Portuguese: 'Procurar briga; bancar o valentão.' },
     'pick a fight': { PartOfSpeech: 'idiom', IPA: '', EnglishDefinition: 'To deliberately provoke an argument or physical confrontation.', Portuguese: 'Procurar briga.' },
     'end up': { PartOfSpeech: 'phrasal verb', IPA: '', EnglishDefinition: 'To finally be in a situation or do something, often unexpectedly.', Portuguese: 'Acabar fazendo algo; acabar em determinada situação.' },
@@ -56,10 +60,7 @@ type DictionaryEntry = {
 
 export const dictionaryLookup = async (term: string, signal: AbortSignal): Promise<Partial<FluencyFields>> => {
     if (!/^[a-z][a-z '-]{0,75}$/i.test(term)) return {};
-    const response = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(term), { signal });
-    if (response.status === 404) return {};
-    if (!response.ok) throw new Error('dictionary: ' + response.status);
-    const data: unknown = await response.json();
+    const data: unknown = await fluencyGetJson('dictionary', term, signal);
     if (!Array.isArray(data)) return {};
     const entry = data[0] as DictionaryEntry | undefined;
     if (!entry) return {};
@@ -74,10 +75,7 @@ export const dictionaryLookup = async (term: string, signal: AbortSignal): Promi
 };
 
 export const translationLookup = async (term: string, signal: AbortSignal): Promise<string> => {
-    const params = new URLSearchParams({ q: term, langpair: 'en|pt-BR' });
-    const response = await fetch('https://api.mymemory.translated.net/get?' + params, { signal });
-    if (!response.ok) throw new Error('translation: ' + response.status);
-    const data: any = await response.json();
+    const data: any = await fluencyGetJson('translation', term, signal);
     if (Number(data.responseStatus) !== 200) throw new Error('translation unavailable');
     const text = String(data.responseData?.translatedText || '').trim();
     return text && text.toLowerCase() !== term.toLowerCase() ? text : '';
