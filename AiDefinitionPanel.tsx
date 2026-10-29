@@ -83,14 +83,19 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
   };
 
   const autoFetchFromAI = async () => {
-    alert("1. Botão clicado! Pedindo para o background procurar a IA...");
     setError(''); setSuccess('');
     if(!prompt) { setError('Digite uma expressão antes de buscar.'); return; }
     
+    // NOVO: Checagem de segurança para evitar erro de contexto perdido
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+      alert("O Chrome perdeu a conexão com a extensão porque ela foi atualizada ou recarregada.\n\nPor favor, aperte F5 nesta página (YouTube) e no ChatGPT para continuar.");
+      return;
+    }
+
     setAutoLoading(true);
     try {
-      // Agora apenas enviamos uma mensagem para o background da extensão
-      // (O background tem permissão para acessar chrome.tabs e chrome.scripting)
+      alert("1. Botão clicado! Pedindo para o background procurar a IA...");
+      
       const res = await chrome.runtime.sendMessage({
         type: 'AI_AUTOMATION_REQUEST',
         prompt: prompt,
