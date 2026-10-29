@@ -60,6 +60,7 @@ if(process.argv.includes('--live')){
       }));
     }catch(e){
       console.log('LIVE IDIOM',JSON.stringify({phrase,error:String(e)}));
+      throw e;
     }
   }
 
