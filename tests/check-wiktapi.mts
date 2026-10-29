@@ -50,6 +50,18 @@ assert.deepEqual(parseWiktApiEntry({entries:[{lang_code:'en',pos:'noun',senses:[
 console.log('PASS: WiktApi JSON parser, full idiom, English-only senses, IPA and deduplication.');
 
 if(process.argv.includes('--live')){
+  for(const phrase of ['good graces',"in someone's good graces","in (someone's) good graces"]){
+    try {
+      const results=await fetchWiktApi(phrase);
+      console.log('LIVE IDIOM',JSON.stringify({
+        phrase,count:results.length,
+        first:results[0]?.definition?.slice(0,115)||null,
+      }));
+    }catch(e){
+      console.log('LIVE IDIOM',JSON.stringify({phrase,error:String(e)}));
+    }
+  }
+
   for(const url of [
     'https://api.wiktapi.dev/v1/en/word/run?lang=en',
     'https://api.wiktapi.dev/v1/en/word/run',
