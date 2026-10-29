@@ -104,6 +104,9 @@ jobs:
       - name: Verificar modelo ilimitado e dados dos cartões
         run: node --experimental-strip-types tests/check-unlimited.mts
 
+      - name: Validar seleção por dicionário e prioridade de pesquisa
+        run: node tests/check-dictionary-selection.mjs asbplayer
+
       - name: Verificar layout, modelos e controle de áudio
         run: node tests/check-clean-editor.mjs asbplayer
 
