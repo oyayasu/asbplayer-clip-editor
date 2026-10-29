@@ -12,6 +12,7 @@ const swap=(s,a,b,name)=>{
 for(const [file,destination] of [
   ['CleanNoteType.ts','common/components/CleanNoteType.ts'],
   ['CleanDefinitionPanel.tsx','common/components/CleanDefinitionPanel.tsx'],
+  ['CleanWordFields.tsx','common/components/CleanWordFields.tsx'],
   ['CleanDictionary.ts','extension/src/services/clean-dictionary.ts'],
   ['WiktApiProvider.ts','extension/src/services/wiktapi-provider.ts']
 ]){
@@ -24,7 +25,7 @@ for(const [file,destination] of [
  const file='common/components/AnkiDialog.tsx';let s=load(file);
  s=swap(s,
    "import MultiVocabularyPanel from '@project/common/components/MultiVocabularyPanel';",
-   "import MultiVocabularyPanel from '@project/common/components/MultiVocabularyPanel';\nimport CleanDefinitionPanel from '@project/common/components/CleanDefinitionPanel';\nimport type { CleanRequest } from '@project/common/components/CleanDefinitionPanel';\nimport { cleanModelName, cleanCustomNames, MAX_CLEAN_TERMS } from '@project/common/components/CleanNoteType';",
+   "import MultiVocabularyPanel from '@project/common/components/MultiVocabularyPanel';\nimport CleanDefinitionPanel from '@project/common/components/CleanDefinitionPanel';\nimport CleanWordFields from '@project/common/components/CleanWordFields';\nimport type { CleanRequest } from '@project/common/components/CleanDefinitionPanel';\nimport { cleanModelName, cleanCustomNames, MAX_CLEAN_TERMS } from '@project/common/components/CleanNoteType';",
    'clean UI imports');
  s=swap(s,"    fluencyLookup?: FluencyBridgeLookup;",
    "    fluencyLookup?: FluencyBridgeLookup;\n    cleanRequest?: CleanRequest;",'clean request prop');
@@ -57,6 +58,22 @@ for(const [file,destination] of [
     "!model.custom && model.key === 'word' && model.field.display && settings.noteType !== multiNoteTypeName && (",
     "!model.custom && model.key === 'word' && model.field.display && settings.noteType !== multiNoteTypeName && settings.noteType !== cleanModelName && (",
     'hide duplicate Word');
+ s=swap(s,
+   "                                            selectedSubtitles={selectedSubtitles}\n                                        />\n                                    )}",
+   [
+     "                                            selectedSubtitles={selectedSubtitles}",
+     "                                        />",
+     "                                    )}",
+     "                                    {settings.noteType === cleanModelName && !model.custom && model.key === 'sentence' && (",
+     "                                        <CleanWordFields",
+     "                                            first={word}",
+     "                                            second={customFieldValues.Word2 || ''}",
+     "                                            onFirstChange={setWord}",
+     "                                            onFieldsChange={(patch)=>setCustomFieldValues(current=>({...current,...patch}))}",
+     "                                        />",
+     "                                    )}"
+   ].join('\n'),
+   'render single Word field with plus button, below Sentence');
  s=swap(s,
     "image && !model.custom && model.key === 'image' && model.field.display && (",
     "image && !model.custom && model.key === 'image' && model.field.display && (settings.noteType !== cleanModelName || showMediaDetails) && (",
@@ -93,7 +110,6 @@ for(const [file,destination] of [
  "                            <CleanDefinitionPanel",
  "                                word={word}",
  "                                values={customFieldValues}",
- "                                onWordChange={setWord}",
  "                                onFieldsChange={(patch)=>setCustomFieldValues(current=>({...current,...patch}))}",
  "                                request={cleanRequest}",
  "                            />",
