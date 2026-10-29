@@ -15,7 +15,8 @@ for(const [file,destination] of [
   ['CleanWordFields.tsx','common/components/CleanWordFields.tsx'],
   ['CleanVocabularyData.ts','common/components/CleanVocabularyData.ts'],
   ['CleanDictionary.ts','extension/src/services/clean-dictionary.ts'],
-  ['WiktApiProvider.ts','extension/src/services/wiktapi-provider.ts']
+  ['WiktApiProvider.ts','extension/src/services/wiktapi-provider.ts'],
+  ['Stands4Phrases.ts','extension/src/services/stands4-phrases.ts']
 ]){
   const target=path.join(root,destination);
   if(fs.existsSync(target))throw Error('Double patch: '+target);
@@ -218,7 +219,7 @@ for(const [file,destination] of [
    'clean handler import');
  s=swap(s,
    "    'fluencyLookup',",
-   "    'fluencyLookup',\n    'fluencyCleanLookup',\n    'fluencySetKey',\n    'fluencyKeyStatus',",
+   "    'fluencyLookup',\n    'fluencyCleanLookup',\n    'fluencySetKey',\n    'fluencyKeyStatus',\n    'fluencyPhrasesSetKey',\n    'fluencyPhrasesStatus',",
    'clean whitelisted actions');
  s=swap(s,
    "        if (message.body?.action === 'fluencyLookup') {",
@@ -235,17 +236,35 @@ for(const [file,destination] of [
      "              sendResponse({configured:Boolean(item.asbplayerMwKey)})).catch(e=>sendResponse({error:String(e)}));",
      "            return true;",
      "        }",
+     "        if (message.body?.action === 'fluencyPhrasesSetKey') {",
+     "            const uid=message.body.uid;",
+     "            const token=message.body.token;",
+     "            if(typeof uid!=='string'||typeof token!=='string'||uid.length>100||token.length>250){",
+     "                sendResponse({error:'Invalid STANDS4 credentials'});return true;",
+     "            }",
+     "            void browser.storage.local.set({asbplayerPhrasesUid:uid.trim(),asbplayerPhrasesToken:token.trim()})",
+     "              .then(()=>sendResponse({configured:Boolean(uid.trim()&&token.trim())}))",
+     "              .catch(()=>sendResponse({error:'Could not store STANDS4 credentials'}));",
+     "            return true;",
+     "        }",
+     "        if (message.body?.action === 'fluencyPhrasesStatus') {",
+     "            void browser.storage.local.get(['asbplayerPhrasesUid','asbplayerPhrasesToken'])",
+     "              .then(item=>sendResponse({configured:Boolean(item.asbplayerPhrasesUid&&item.asbplayerPhrasesToken)}))",
+     "              .catch(()=>sendResponse({configured:false}));",
+     "            return true;",
+     "        }",
      "        if (message.body?.action === 'fluencyCleanLookup') {",
      "            const term=message.body.term;",
      "            const source=message.body.source||'auto';",
-     "            if(!['auto','merriam','wiktapi','wiktionary','datamuse','freeDictionary'].includes(source)){",
+     "            if(!['auto','merriam','phrases','wiktapi','wiktionary','datamuse','freeDictionary'].includes(source)){",
      "                sendResponse({error:'Unknown dictionary provider'});return true;",
      "            }",
-     "            if(typeof term!=='string'||!term.trim()||term.length>160){
+     "            if(typeof term!=='string'||!term.trim()||term.length>160){",
      "                sendResponse({error:'Invalid lookup term'});return true;",
      "            }",
-     "            void browser.storage.local.get('asbplayerMwKey')",
-     "              .then(item=>lookupCleanTerm(term,String(item.asbplayerMwKey||''),source))",
+     "            void browser.storage.local.get(['asbplayerMwKey','asbplayerPhrasesUid','asbplayerPhrasesToken'])",
+     "              .then(item=>lookupCleanTerm(term,String(item.asbplayerMwKey||''),source,",
+     "                String(item.asbplayerPhrasesUid||''),String(item.asbplayerPhrasesToken||'')))",
      "              .then(result=>sendResponse(result))",
      "              .catch(e=>sendResponse({error:e instanceof Error?e.message:String(e)}));",
      "            return true;",
@@ -269,7 +288,7 @@ for(const [file,destination] of [
   let s=load(file);
   s=swap(s,
     "'https://en.wiktionary.org/*', 'https://api.datamuse.com/*'",
-    "'https://en.wiktionary.org/*', 'https://api.datamuse.com/*', 'https://api.wiktapi.dev/*'",
+    "'https://en.wiktionary.org/*', 'https://api.datamuse.com/*', 'https://api.wiktapi.dev/*', 'https://www.stands4.com/*'",
     'WiktApi host permission');
   save(file,s);
 }
