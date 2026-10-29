@@ -11,7 +11,7 @@ export default defineConfig({
       'contextMenus',
       'sidePanel',
       'offscreen',
-      'scripting' // <--- A permissão mágica para injetar o espião
+      'scripting'
     ],
     host_permissions: [
       'https://api.dictionaryapi.dev/*',
@@ -20,11 +20,16 @@ export default defineConfig({
       'https://api.datamuse.com/*',
       'https://api.wiktapi.dev/*',
       'https://www.stands4.com/*',
-      // Permissões para a IA:
       'https://chatgpt.com/*',
       'https://chat.openai.com/*',
       'https://claude.ai/*',
       'https://gemini.google.com/*'
+    ],
+    web_accessible_resources: [
+      {
+        resources: ['popup-ui.html', 'content-scripts/ai-automation.js'],
+        matches: ['<all_urls>']
+      }
     ]
   }
 });
