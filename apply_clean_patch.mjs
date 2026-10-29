@@ -13,6 +13,7 @@ for(const [file,destination] of [
   ['CleanNoteType.ts','common/components/CleanNoteType.ts'],
   ['CleanDefinitionPanel.tsx','common/components/CleanDefinitionPanel.tsx'],
   ['CleanWordFields.tsx','common/components/CleanWordFields.tsx'],
+  ['CleanVocabularyData.ts','common/components/CleanVocabularyData.ts'],
   ['CleanDictionary.ts','extension/src/services/clean-dictionary.ts'],
   ['WiktApiProvider.ts','extension/src/services/wiktapi-provider.ts']
 ]){
@@ -25,7 +26,7 @@ for(const [file,destination] of [
  const file='common/components/AnkiDialog.tsx';let s=load(file);
  s=swap(s,
    "import MultiVocabularyPanel from '@project/common/components/MultiVocabularyPanel';",
-   "import MultiVocabularyPanel from '@project/common/components/MultiVocabularyPanel';\nimport CleanDefinitionPanel from '@project/common/components/CleanDefinitionPanel';\nimport CleanWordFields from '@project/common/components/CleanWordFields';\nimport type { CleanRequest } from '@project/common/components/CleanDefinitionPanel';\nimport { cleanModelName, cleanCustomNames, MAX_CLEAN_TERMS } from '@project/common/components/CleanNoteType';",
+   "import MultiVocabularyPanel from '@project/common/components/MultiVocabularyPanel';\nimport CleanDefinitionPanel from '@project/common/components/CleanDefinitionPanel';\nimport CleanWordFields from '@project/common/components/CleanWordFields';\nimport type { CleanRequest } from '@project/common/components/CleanDefinitionPanel';\nimport { cleanModelName, cleanCustomNames } from '@project/common/components/CleanNoteType';\nimport { readVocabulary, updateVocabulary } from '@project/common/components/CleanVocabularyData';",
    'clean UI imports');
  s=swap(s,"    fluencyLookup?: FluencyBridgeLookup;",
    "    fluencyLookup?: FluencyBridgeLookup;\n    cleanRequest?: CleanRequest;",'clean request prop');
@@ -36,10 +37,10 @@ for(const [file,destination] of [
    'details state');
  const before="    const fluencyIncomplete = (settings.noteType === fluencyNoteTypeName &&";
  const add=[
+   "    const cleanEntries=readVocabulary(customFieldValues.VocabularyData,word);",
    "    const cleanIncomplete = settings.noteType === cleanModelName &&",
-   "        (!word.trim() || !customFieldValues.EnglishDefinition?.trim() ||",
-   "            Array.from({length:MAX_CLEAN_TERMS-1},(_,index)=>index+2).some(i=>",
-   "                customFieldValues['Word'+i]?.trim() && !customFieldValues['EnglishDefinition'+i]?.trim()));",
+   "        (!cleanEntries.some(entry=>entry.term.trim()) ||",
+   "        cleanEntries.some(entry=>entry.term.trim() && !entry.definition.trim()));",
    ""
  ].join('\n');
  s=swap(s,before,add+before,'clean card validation');
@@ -66,10 +67,9 @@ for(const [file,destination] of [
      "                                    )}",
      "                                    {settings.noteType === cleanModelName && !model.custom && model.key === 'sentence' && (",
      "                                        <CleanWordFields",
-     "                                            first={word}",
-     "                                            second={customFieldValues.Word2 || ''}",
+     "                                            entries={readVocabulary(customFieldValues.VocabularyData,word)}",
      "                                            onFirstChange={setWord}",
-     "                                            onFieldsChange={(patch)=>setCustomFieldValues(current=>({...current,...patch}))}",
+     "                                            onEntriesChange={(updater)=>setCustomFieldValues(current=>({...current,...updateVocabulary(current.VocabularyData,word,updater)}))}",
      "                                        />",
      "                                    )}"
    ].join('\n'),
@@ -108,9 +108,8 @@ for(const [file,destination] of [
  "                        )}",
  "                        {settings.noteType === cleanModelName && cleanRequest && (",
  "                            <CleanDefinitionPanel",
- "                                word={word}",
- "                                values={customFieldValues}",
- "                                onFieldsChange={(patch)=>setCustomFieldValues(current=>({...current,...patch}))}",
+ "                                entries={readVocabulary(customFieldValues.VocabularyData,word)}",
+ "                                onEntriesChange={(updater)=>setCustomFieldValues(current=>({...current,...updateVocabulary(current.VocabularyData,word,updater)}))}",
  "                                request={cleanRequest}",
  "                            />",
  "                        )}",
@@ -180,7 +179,7 @@ for(const [file,destination] of [
  "                customAnkiFields:mapped,customAnkiFieldSettings:{},",
  "            });",
  "            await requestAnkiConnect();",
- "            setCleanMessage('English-only Definition model activated. Existing cards were not modified.');",
+ "            setCleanMessage('Unlimited English vocabulary model activated. Existing cards were not modified.');",
  "        }catch(e){asbError('anki/clean-setup',e);setCleanMessage('Could not create model: '+String(e));}",
  "        finally{setInstallingClean(false);}",
  "    },[anki,ankiConnectUrl,deck,onSettingsChanged,requestAnkiConnect]);",
@@ -198,10 +197,10 @@ for(const [file,destination] of [
    "            <Stack spacing={1} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, mt: 1 }}>\n                <strong>English Fluency — várias expressões por cena (ANTERIOR)</strong>",
    [
    "            <Stack spacing={1} sx={{border:'1px solid',borderColor:'divider',borderRadius:2,p:2,mt:1}}>",
-   "                <strong>New: English-only Definition (recommended)</strong>",
-   "                <FormHelperText>One vocabulary editor, up to five terms, no translation or duplicate fields. Merriam-Webster API key can be added in Definition settings.</FormHelperText>",
+   "                <strong>English-only unlimited vocabulary (recommended)</strong>",
+   "                <FormHelperText>Add as many expressions as needed per scene. Each definition stays editable. The new Anki model preserves existing cards.</FormHelperText>",
    "                <Button type=\"button\" variant=\"contained\" disabled={installingClean} onClick={()=>{void handleInstallClean();}}>",
-   "                    {installingClean?'Configuring...':'Activate clean Anki model'}",
+   "                    {installingClean?'Configuring...':'Activate unlimited Anki model'}",
    "                </Button>",
    "                {cleanMessage && <FormHelperText>{cleanMessage}</FormHelperText>}",
    "            </Stack>",
