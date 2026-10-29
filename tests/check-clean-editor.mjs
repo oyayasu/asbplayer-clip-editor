@@ -49,7 +49,7 @@ assert(panel.includes('action:\'fluencyCleanLookup\''));
 assert(panel.includes('action:\'fluencySetKey\''));
 assert(dictionary.includes('parseMerriamWebsterLearners'));
 assert(dictionary.includes("references/learners/json/"));
-assert(dictionary.includes('resolveRemoteDictionary'));
+assert(dictionary.includes('lookupIndividualDictionary'));
 assert(background.includes('lookupCleanTerm'));
 assert(background.includes("action === 'fluencySetKey'"));
 assert(background.includes("action === 'fluencyCleanLookup'"));
