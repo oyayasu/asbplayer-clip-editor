@@ -20,6 +20,7 @@ on:
       - 'CleanNoteType.ts'
       - 'CleanDefinitionPanel.tsx'
       - 'CleanWordFields.tsx'
+      - 'CleanVocabularyData.ts'
       - 'CleanDictionary.ts'
       - 'WiktApiProvider.ts'
       - 'apply_clean_patch.mjs'
@@ -99,6 +100,9 @@ jobs:
 
       - name: Validar WiktApi JSON e consultas reais
         run: node --experimental-strip-types tests/check-wiktapi.mts --live
+
+      - name: Verificar modelo ilimitado e dados dos cartões
+        run: node --experimental-strip-types tests/check-unlimited.mts
 
       - name: Verificar layout, modelos e controle de áudio
         run: node tests/check-clean-editor.mjs asbplayer
