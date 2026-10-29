@@ -20,7 +20,7 @@ fs.copyFileSync(path.resolve('RemoteDictionary.ts'),dst);
    "import { asbError } from '@project/common/util/log';\nimport { resolveRemoteDictionary } from '@/services/remote-dictionary';",
    'Online resolver import');
   s=replace(s,
-    "'parser', 'term', 'service'];","'parser', 'term', 'service', 'sentence', 'source'];",
+    "'parser', 'term', 'service'];","'parser', 'term', 'service', 'sentence', 'source', 'key', 'uid', 'token'];",
     'Permit subtitle context field');
   s=replace(s,
     '            const {term,service}=message.body;',
