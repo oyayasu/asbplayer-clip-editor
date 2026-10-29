@@ -31,10 +31,15 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
   const [success,setSuccess]=useState('');
   const [copied,setCopied]=useState(false);
   const [imported,setImported]=useState<AIResult|null>(null);
+  
+  // NOVO: Estado para o botão de automação
+  const [autoLoading,setAutoLoading]=useState(false);
+
   const prompt=useMemo(()=>{
     try{return buildAIPrompt(sentence,entries);}
     catch{return '';}
   },[sentence,entries.map(entry=>entry.term).join('\u0001')]);
+  
   const selected=AI_PROVIDERS[provider];
   const active=entries.filter(entry=>entry.term.trim());
 
@@ -79,6 +84,42 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
     importAnswer(text);
   };
 
+  // NOVO: Função que conversa com o nosso Content Script
+  const autoFetchFromAI = async () => {
+    setError(''); setSuccess('');
+    if(!prompt) { setError('Digite uma expressão antes de buscar.'); return; }
+    
+    setAutoLoading(true);
+    try {
+      // Pega a aba que está ativa no momento (o site da IA)
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id) throw new Error('Nenhuma aba ativa encontrada. Abra o ChatGPT/Gemini.');
+
+      // Garante que o script "espião" está injetado na aba
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content-scripts/ai-automation.js'], 
+      }).catch(() => {}); // Ignora se já estiver injetado
+
+      // Envia a mensagem com o prompt
+      const res = await chrome.tabs.sendMessage(tab.id, {
+        type: 'AI_AUTOMATION_LOOKUP',
+        prompt: prompt,
+      });
+
+      if (!res?.ok) throw new Error(res?.error || 'Falha na comunicação com a IA.');
+
+      // Se a IA respondeu, joga o texto na caixa de resposta e importa!
+      setResponse(res.raw);
+      importAnswer(res.raw); // Reutiliza sua função que já funciona
+
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAutoLoading(false);
+    }
+  };
+
   const changeDefinition=(index:number,value:string)=>{
     onEntriesChange(previous=>{
       let at=-1;
@@ -112,8 +153,22 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
           <MenuItem key={id} value={id}>{AI_PROVIDERS[id].label}</MenuItem>)}
       </Select>
     </FormControl>
+
+    {/* NOVO: Botão de Automação */}
     <Box sx={{display:'flex',gap:1,flexWrap:'wrap'}}>
-      <Button type="button" variant="contained" startIcon={<ContentCopyOutlinedIcon/>}
+      <Button type="button" variant="contained" color="success" startIcon={<AutoAwesomeOutlinedIcon/>}
+        disabled={!prompt || autoLoading} onClick={()=>void autoFetchFromAI()}
+        sx={{textTransform:'none',flex:'1 1 100%', py: 1.5}}>
+        {autoLoading ? 'Aguardando resposta da IA...' : '3. Get AI response automatically'}
+      </Button>
+    </Box>
+
+    <Typography variant="caption" color="text.secondary" align="center">
+      --- OR use the manual method below ---
+    </Typography>
+
+    <Box sx={{display:'flex',gap:1,flexWrap:'wrap'}}>
+      <Button type="button" variant="outlined" startIcon={<ContentCopyOutlinedIcon/>}
         disabled={!prompt} onClick={()=>void copyPrompt()}
         sx={{textTransform:'none',flex:'1 1 180px'}}>
         1. Copy structured prompt
@@ -124,25 +179,23 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
         2. Open {selected.label}
       </Button>
     </Box>
-    <Typography variant="caption" color="text.secondary">
-      Paste and send the prompt in your {selected.label} tab. Use the AI site's Copy
-      control to copy its completed JSON reply, then paste it below.
-      Direct scraping of signed-in AI chats is deliberately disabled.
-    </Typography>
+    
     <TextField label="Prompt preview (select to copy manually)" fullWidth
       multiline minRows={2} maxRows={5} size="small"
       value={prompt} InputProps={{readOnly:true}}
       helperText={copied?'Copied to clipboard':''}/>
-    <TextField label="3. Paste the AI response (JSON)" fullWidth
+      
+    <TextField label="Paste the AI response (JSON) manually" fullWidth
       multiline minRows={3} maxRows={10} size="small"
       placeholder='{"version":1,"entries":[{"term":"throw around","partOfSpeech":"phrasal verb","ipa":"","definition":"To discuss ideas informally.","alternativeDefinitions":[]}]}'
       value={response}
       onChange={event=>{setResponse(event.target.value);setError('');setSuccess('');}}/>
+      
     <Box sx={{display:'flex',gap:1,flexWrap:'wrap'}}>
-      <Button type="button" variant="contained" color="primary"
+      <Button type="button" variant="outlined" color="primary"
         disabled={!active.length} onClick={()=>void importFromClipboard()}
         sx={{textTransform:'none'}}>
-        4. Import copied response
+        Import copied response
       </Button>
       <Button type="button" variant="outlined" color="primary"
         disabled={!response.trim()||!active.length}
@@ -150,8 +203,10 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
         Import from text field
       </Button>
     </Box>
+    
     {error&&<Alert severity="warning" sx={{py:0}}>{error}</Alert>}
     {success&&<Alert severity="success" sx={{py:0}}>{success}</Alert>}
+    
     {active.map((entry,index)=>{
       const options=imported?.entries[index];
       const alternatives=options && normalized(options.term)===normalized(entry.term)
