@@ -32,9 +32,24 @@ const nestedDefinitionTexts=(node:unknown):string[]=>{
     walk(node);
     return values;
 };
-const idiomMatch=(term:string, phrase:string)=>{
-    const target=normalized(term), candidate=normalized(phrase);
-    return candidate===target || candidate.replace(/[\[\]()*]/g,'')===target;
+/**
+ * Match a user's meaningful phrase inside a longer published dictionary
+ * headword. Only use ordered contiguous words; do not fabricate synonyms.
+ * E.g. "good graces" is a match for "in (someone's) good graces".
+ */
+export const idiomMatch=(term:string, phrase:string)=>{
+    const simplify=(value:string)=>normalized(value)
+        .replace(/[()[\]{}]/g,' ')
+        .replace(/[’']/g,'')
+        .replace(/[\\/–—-]/g,' ')
+        .replace(/[^a-z0-9\s]/g,' ')
+        .replace(/\s+/g,' ').trim();
+    const target=simplify(term), candidate=simplify(phrase);
+    if(!target || !candidate)return false;
+    if(candidate===target)return true;
+    // A single word is too ambiguous for substring matching.
+    if(target.split(' ').length<2)return false;
+    return (' '+candidate+' ').includes(' '+target+' ');
 };
 
 export function parseMerriamWebsterLearners(data:unknown,term:string):CleanSense[]{
@@ -75,6 +90,45 @@ export function parseMerriamWebsterLearners(data:unknown,term:string):CleanSense
     return unique(list);
 }
 
+
+/**
+ * Extract only matching idiom subentries when looking under an adjacent
+ * headword (e.g. the singular final word). Exclude the parent word's
+ * unrelated definitions.
+ */
+const parseNestedIdiom=(data:unknown, term:string):CleanSense[]=>{
+    if(!Array.isArray(data))return [];
+    const result:CleanSense[]=[];
+    for(const entry of data){
+        if(!entry || typeof entry!=='object')continue;
+        for(const sub of Array.isArray(entry.dros)?entry.dros:[]){
+            if(!idiomMatch(term,String(sub?.drp||'')))continue;
+            const definitions=(Array.isArray(sub.shortdef)&&sub.shortdef.length
+                ? sub.shortdef : nestedDefinitionTexts(sub.def));
+            for(const item of definitions){
+                const definition=tidy(item);
+                if(definition && !/^see /.test(definition.toLowerCase()))result.push({
+                    partOfSpeech:'idiom / phrase',definition,ipa:'',
+                    label:definition.slice(0,95),
+                    source:"Merriam-Webster Learner's Dictionary",
+                });
+            }
+        }
+    }
+    return unique(result);
+};
+
+const headwordCandidates=(term:string):string[]=>{
+    const tokens=normalized(term).replace(/[()[\\]{}]/g,'').split(/\\s+/).filter(Boolean);
+    if(tokens.length<2)return [];
+    const last=tokens[tokens.length-1];
+    const singular=last.endsWith('ies') ? last.slice(0,-3)+'y'
+        : last.endsWith('s') && last.length>3 ? last.slice(0,-1) : last;
+    // First word handles phrasal verbs; final noun catches expressions
+    // indexed under a headword, such as "good graces" under "grace".
+    return [...new Set([tokens[0],singular])].filter(v=>v.length>2 && v!==normalized(term));
+};
+
 const fetchLearners=async(term:string,key:string):Promise<CleanSense[]>=>{
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),6500);
@@ -103,7 +157,25 @@ export async function lookupCleanTerm(term:string,mwKey=''):Promise<{senses:Clea
     ]);
     const primary=merriam.status==='fulfilled' ? merriam.value : [];
     const complementary=wiktapi.status==='fulfilled' ? wiktapi.value : [];
-    const combined=unique([...primary,...complementary]);
+    let combined=unique([...primary,...complementary]);
+    // If exact lookup fails, try related headwords and read ONLY their
+    // dictionary-published idioms. This mimics website phrase search
+    // without changing the user's typed term.
+    if(!combined.length && mwKey && value.includes(' ')){
+        const rootWords=headwordCandidates(value);
+        const nested=await Promise.allSettled(rootWords.map(async root=>{
+            const controller=new AbortController();
+            const timer=setTimeout(()=>controller.abort(),5500);
+            try{
+                const url='https://www.dictionaryapi.com/api/v3/references/learners/json/'+
+                    encodeURIComponent(root)+'?key='+encodeURIComponent(mwKey);
+                const response=await fetch(url,{signal:controller.signal});
+                if(!response.ok)return [];
+                return parseNestedIdiom(await response.json(),value);
+            }finally{clearTimeout(timer);}
+        }));
+        combined=unique(nested.flatMap(result=>result.status==='fulfilled'?result.value:[]));
+    }
     if(combined.length){
         return {
             senses:combined,
