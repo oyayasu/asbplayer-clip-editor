@@ -80,6 +80,16 @@ async function freeDictionary(term:string):Promise<Entry|null>{
     provider:'Free Dictionary API'
   };
 }
+export type IndividualDictionary = 'wiktionary' | 'datamuse' | 'freeDictionary';
+/** Single-provider query, preserving its attribution and dictionary senses. */
+export async function lookupIndividualDictionary(term:string, provider:IndividualDictionary):Promise<any[]> {
+  const lookups:Record<IndividualDictionary,(term:string)=>Promise<Entry|null>>={
+    wiktionary,datamuse,freeDictionary
+  };
+  const entry=await lookups[provider](term);
+  if(!entry || !entry.meanings.some(m=>m.definitions.length>0)) return [];
+  return [{word:term,meanings:entry.meanings,phonetics:entry.phonetics,provider:entry.provider}];
+}
 export async function resolveRemoteDictionary(term:string):Promise<any>{
   // Every source is independent. Previously Free Dictionary was tried only if
   // Wiktionary and Datamuse both returned no meanings. That also discarded its
