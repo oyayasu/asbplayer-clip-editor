@@ -1,4 +1,5 @@
-import { resolveRemoteDictionary } from './remote-dictionary';
+import { lookupIndividualDictionary } from './remote-dictionary';
+import type { IndividualDictionary } from './remote-dictionary';
 import { fetchWiktApi } from './wiktapi-provider';
 
 export type CleanSense = {partOfSpeech:string; definition:string; ipa:string; source:string; label:string};
@@ -89,49 +90,64 @@ const fetchLearners=async(term:string,key:string):Promise<CleanSense[]>=>{
 };
 
 /**
- * Merriam-Webster remains the first choice. WiktApi supplies additional
- * meanings even if Merriam-Webster finds the term. Existing online dictionary
- * fallbacks are only needed if both main sources have no entries.
+ * No definitions from different providers are merged. Auto checks providers
+ * in priority order; selecting a provider searches only that provider.
+ * TheFreeDictionary is linked externally until Farlex grants API access.
  */
-export async function lookupCleanTerm(term:string,mwKey=''):Promise<{senses:CleanSense[];warning?:string}>{
+export type CleanDictionarySource =
+    'auto' | 'merriam' | 'wiktapi' | IndividualDictionary;
+
+const sources:Exclude<CleanDictionarySource,'auto'>[]=[
+    'merriam','wiktapi','wiktionary','datamuse','freeDictionary'
+];
+
+const convertOther=(payload:any[]):CleanSense[]=>unique(
+    payload.flatMap((entry:any)=>
+        (entry.meanings||[]).flatMap((meaning:any)=>
+            (meaning.definitions||[]).map((d:any)=>({
+                partOfSpeech:String(meaning.partOfSpeech||'expression'),
+                definition:tidy(d.definition),
+                ipa:String(entry.phonetics?.[0]?.text||''),
+                source:String(entry.provider||'Online dictionary'),
+                label:tidy(d.definition).slice(0,95),
+            }))
+        ))
+);
+
+const fromProvider=async(term:string,key:string,source:Exclude<CleanDictionarySource,'auto'>):Promise<CleanSense[]>=>{
+    if(source==='merriam'){
+        if(!key.trim())throw Error('Configure sua chave gratuita Merriam-Webster nas opções do dicionário.');
+        return fetchLearners(term,key);
+    }
+    if(source==='wiktapi')return unique(await fetchWiktApi(term));
+    return convertOther(await lookupIndividualDictionary(term,source));
+};
+
+export async function lookupCleanTerm(
+    term:string,mwKey='',source:CleanDictionarySource='auto'
+):Promise<{senses:CleanSense[];provider:string;warning?:string}>{
     const value=term.trim().slice(0,160);
     if(!value)throw Error('Digite um termo para pesquisar.');
+    if(source!=='auto' && !sources.includes(source))
+        throw Error('Fonte de dicionário inválida.');
 
-    const [merriam,wiktapi]=await Promise.allSettled([
-        mwKey ? fetchLearners(value,mwKey) : Promise.resolve([] as CleanSense[]),
-        fetchWiktApi(value),
-    ]);
-    const primary=merriam.status==='fulfilled' ? merriam.value : [];
-    const complementary=wiktapi.status==='fulfilled' ? wiktapi.value : [];
-    const combined=unique([...primary,...complementary]);
-    if(combined.length){
-        return {
-            senses:combined,
-            warning:merriam.status==='rejected' ? 'Merriam-Webster indisponível; outras fontes foram usadas.' :
-                wiktapi.status==='rejected' ? 'WiktApi indisponível; Merriam-Webster respondeu.' : undefined,
-        };
-    }
+    const selected=source==='auto'
+        ? sources.filter(provider=>provider!=='merriam'||Boolean(mwKey.trim()))
+        : [source];
 
-    const errors=[
-        ...(merriam.status==='rejected' ? ['Merriam-Webster: '+String(merriam.reason)] : []),
-        ...(wiktapi.status==='rejected' ? ['WiktApi: '+String(wiktapi.reason)] : []),
-    ];
-    try{
-        const fallback=await resolveRemoteDictionary(value);
-        const senses=unique((Array.isArray(fallback)?fallback:[]).flatMap((entry:any)=>
-            (entry.meanings||[]).flatMap((meaning:any)=>
-                (meaning.definitions||[]).map((d:any)=>({
-                    partOfSpeech:String(meaning.partOfSpeech||'expression'),
-                    definition:tidy(d.definition),
-                    ipa:String(entry.phonetics?.[0]?.text||''),
-                    source:String(entry.provider||'Online dictionary'),
-                    label:tidy(d.definition).slice(0,95),
-                }))
-            )));
-        if(senses.length)return {senses,warning:errors.length ? errors.join('; ') : undefined};
-    }catch(e){
-        errors.push(String(e));
+    const errors:string[]=[];
+    for(const provider of selected){
+        try {
+            const senses=await fromProvider(value,mwKey,provider);
+            if(senses.length)
+                return {senses,provider};
+        }catch(e){
+            const detail=e instanceof Error?e.message:String(e);
+            errors.push(provider+': '+detail);
+        }
     }
-    throw Error('Nenhuma definição encontrada para "'+value+'".'+
-        (errors.length ? ' Fontes: '+errors.join('; ') : ' Tente outra grafia ou forma-base.'));
+    const message=source==='auto'
+        ? 'Nenhum dos dicionários disponíveis encontrou uma definição.'
+        : 'Nenhuma definição encontrada nesta fonte.';
+    throw Error(message+(errors.length?' '+errors.join(' | '):' Tente outra fonte no seletor.'));
 }
