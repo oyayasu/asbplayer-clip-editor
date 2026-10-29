@@ -6,7 +6,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     try {
       // Procura uma aba aberta do ChatGPT, Claude ou Gemini
       const tabs = await chrome.tabs.query({ 
-        url: ["*://chatgpt.com/*", "*://chat.openai.com/*", "*://claude.ai/*", "*://gemini.google.com/*"] 
+        url: [
+          "*://chatgpt.com/*", 
+          "*://chat.openai.com/*", 
+          "*://claude.ai/*", 
+          "*://gemini.google.com/*"
+        ] 
       });
       
       if (!tabs || tabs.length === 0) {
@@ -19,7 +24,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       await chrome.scripting.executeScript({
         target: { tabId: aiTab.id! },
         files: ['content-scripts/ai-automation.js'], 
-      }).catch(() => {}); // Ignora se já estiver injetado
+      }).catch((err) => {
+        console.warn("Script já injetado ou aviso de injeção:", err);
+      }); 
+
+      // Pequeno delay para garantir que o script foi carregado
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Manda o prompt para a aba da IA
       const res = await chrome.tabs.sendMessage(aiTab.id!, {
@@ -27,7 +37,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         prompt: msg.prompt,
       });
 
-      // Devolve a resposta para o painel do YouTube
+      // Devolve a resposta para o painel do YouTube / asbplayer
       sendResponse(res);
     } catch (err: any) {
       sendResponse({ ok: false, error: err?.message || String(err) });
