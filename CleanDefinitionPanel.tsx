@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import type { VocabularyEntry } from './CleanVocabularyData';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -27,18 +28,14 @@ interface Sense {
   label:string;
 }
 interface Props {
-  word:string;
-  values:Record<string,string>;
-  onFieldsChange:(fields:Record<string,string>)=>void;
+  entries: VocabularyEntry[];
+  onEntriesChange: (updater:(entries:VocabularyEntry[])=>VocabularyEntry[])=>void;
   request:CleanRequest;
 }
-
-const fields=['PartOfSpeech','IPA','EnglishDefinition','DictionarySource'] as const;
-const full=(index:number,field:string)=>field+(index===0?'':'2');
 const normalize=(s:string)=>s.trim().toLowerCase().replace(/\s+/g,' ');
 
-export default function CleanDefinitionPanel({word,values,onFieldsChange,request}:Props) {
-  const terms=useMemo(()=>[word,values.Word2||''],[word,values.Word2]);
+export default function CleanDefinitionPanel({entries,onEntriesChange,request}:Props) {
+  const terms=entries.map(entry=>entry.term);
   const [loading,setLoading]=useState<number[]>([]);
   const [errors,setErrors]=useState<Record<number,string>>({});
   const [senses,setSenses]=useState<Record<number,Sense[]>>({});
@@ -47,8 +44,8 @@ export default function CleanDefinitionPanel({word,values,onFieldsChange,request
   const [key,setKey]=useState('');
   const [hasKey,setHasKey]=useState(false);
   const [keyMessage,setKeyMessage]=useState('');
-  const ref=useRef({terms,values,onFieldsChange});
-  useEffect(()=>{ref.current={terms,values,onFieldsChange};},[terms,values,onFieldsChange]);
+  const ref=useRef({terms,entries,onEntriesChange});
+  useEffect(()=>{ref.current={terms,entries,onEntriesChange};},[entries,onEntriesChange]);
   useEffect(()=>{
     void request({action:'fluencyKeyStatus'})
       .then(result=>setHasKey(Boolean(result?.configured))).catch(()=>{});
@@ -62,9 +59,9 @@ export default function CleanDefinitionPanel({word,values,onFieldsChange,request
     setErrors({});
     const controllers:{cancelled:boolean}[]=[];
     const timers:Array<ReturnType<typeof setTimeout>>=[];
-    for(let index=0;index<2;index++){
+    for(let index=0;index<ref.current.terms.length;index++){
       const term=ref.current.terms[index]?.trim()||'';
-      if(!term)continue;
+      if(!term || (retry===0 && ref.current.entries[index]?.definition.trim()))continue;
       const controller={cancelled:false};
       controllers.push(controller);
       const timer=setTimeout(async()=>{
@@ -78,21 +75,17 @@ export default function CleanDefinitionPanel({word,values,onFieldsChange,request
           const results=Array.isArray(response?.senses)?response.senses as Sense[]:[];
           if(!results.length)throw Error('No dictionary definition found.');
           setSenses(previous=>({...previous,[index]:results}));
-          const current=ref.current.values;
           const selected=results[0];
-          const patch:Record<string,string>={};
-          const valuesFromSource:Record<typeof fields[number],string>={
-            PartOfSpeech:selected.partOfSpeech||'',
-            IPA:selected.ipa||'',
-            EnglishDefinition:selected.definition||'',
-            DictionarySource:selected.source||'',
-          };
-          for(const field of fields){
-            if(!current[full(index,field)]?.trim() && valuesFromSource[field]){
-              patch[full(index,field)]=valuesFromSource[field];
-            }
-          }
-          if(Object.keys(patch).length)ref.current.onFieldsChange(patch);
+          ref.current.onEntriesChange(previous=>previous.map((entry,i)=>
+            i===index && normalize(entry.term)===normalize(term)
+              ? {
+                  ...entry,
+                  partOfSpeech:entry.partOfSpeech||selected.partOfSpeech||'',
+                  ipa:entry.ipa||selected.ipa||'',
+                  definition:entry.definition||selected.definition||'',
+                  source:entry.source||selected.source||'',
+                }
+              : entry));
         }catch(error){
           if(!controller.cancelled)setErrors(previous=>({
             ...previous,[index]:String(error instanceof Error?error.message:error)
@@ -110,12 +103,9 @@ export default function CleanDefinitionPanel({word,values,onFieldsChange,request
   },[termKeys,retry,request]);
 
   const choose=(index:number,sense:Sense)=>{
-    onFieldsChange({
-      [full(index,'PartOfSpeech')]:sense.partOfSpeech,
-      [full(index,'IPA')]:sense.ipa,
-      [full(index,'EnglishDefinition')]:sense.definition,
-      [full(index,'DictionarySource')]:sense.source,
-    });
+    onEntriesChange(previous=>previous.map((entry,i)=>i===index
+      ? {...entry,partOfSpeech:sense.partOfSpeech,ipa:sense.ipa,definition:sense.definition,source:sense.source}
+      : entry));
   };
 
   const saveKey=async()=>{
@@ -167,7 +157,8 @@ export default function CleanDefinitionPanel({word,values,onFieldsChange,request
         Type a term in Word above to fill its English definition automatically.
       </Typography>
     }
-    {terms.map((term,index)=>{
+    {entries.map((entry,index)=>{
+      const term=entry.term;
       if(!term.trim())return null;
       const choices=senses[index]||[];
       const isLoading=loading.includes(index);
@@ -190,7 +181,7 @@ export default function CleanDefinitionPanel({word,values,onFieldsChange,request
           <FormControl fullWidth size="small">
             <InputLabel id={'sense-'+index}>Dictionary meaning</InputLabel>
             <Select labelId={'sense-'+index} label="Dictionary meaning"
-              value={Math.max(0,choices.findIndex(s=>s.definition===values[full(index,'EnglishDefinition')]))}
+              value={Math.max(0,choices.findIndex(s=>s.definition===entry.definition))}
               onChange={event=>choose(index,choices[Number(event.target.value)])}>
               {choices.map((sense,i)=>
                 <MenuItem key={i} value={i} sx={{whiteSpace:'normal',fontSize:13}}>
@@ -200,18 +191,18 @@ export default function CleanDefinitionPanel({word,values,onFieldsChange,request
           </FormControl>}
         <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'minmax(0,1fr) minmax(0,1fr)'},gap:1}}>
           <TextField size="small" label="Part of speech" fullWidth
-            value={values[full(index,'PartOfSpeech')]||''}
-            onChange={event=>onFieldsChange({[full(index,'PartOfSpeech')]:event.target.value})}/>
+            value={entry.partOfSpeech}
+            onChange={event=>onEntriesChange(old=>old.map((item,i)=>i===index?{...item,partOfSpeech:event.target.value}:item))}/>
           <TextField size="small" label="IPA (if available)" fullWidth
-            value={values[full(index,'IPA')]||''}
-            onChange={event=>onFieldsChange({[full(index,'IPA')]:event.target.value})}/>
+            value={entry.ipa}
+            onChange={event=>onEntriesChange(old=>old.map((item,i)=>i===index?{...item,ipa:event.target.value}:item))}/>
         </Box>
         <TextField size="small" label="Definition (English)" fullWidth multiline minRows={2} maxRows={4}
-          value={values[full(index,'EnglishDefinition')]||''}
-          onChange={event=>onFieldsChange({[full(index,'EnglishDefinition')]:event.target.value})}/>
-        {Boolean(values[full(index,'DictionarySource')])&&
+          value={entry.definition}
+          onChange={event=>onEntriesChange(old=>old.map((item,i)=>i===index?{...item,definition:event.target.value}:item))}/>
+        {Boolean(entry.source)&&
           <Typography variant="caption" color="text.secondary">
-            Source: {values[full(index,'DictionarySource')]}
+            Source: {entry.source}
           </Typography>}
       </Box>;
     })}
