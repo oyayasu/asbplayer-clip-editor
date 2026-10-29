@@ -1,6 +1,7 @@
 import { lookupIndividualDictionary } from './remote-dictionary';
 import type { IndividualDictionary } from './remote-dictionary';
 import { fetchWiktApi } from './wiktapi-provider';
+import { fetchStands4Phrases } from './stands4-phrases';
 
 export type CleanSense = {partOfSpeech:string; definition:string; ipa:string; source:string; label:string};
 const tidy=(value:unknown)=>String(value||'').replace(/\{[^}]*\}/g,'').replace(/\s+/g,' ').trim();
@@ -95,10 +96,10 @@ const fetchLearners=async(term:string,key:string):Promise<CleanSense[]>=>{
  * TheFreeDictionary is linked externally until Farlex grants API access.
  */
 export type CleanDictionarySource =
-    'auto' | 'merriam' | 'wiktapi' | IndividualDictionary;
+    'auto' | 'merriam' | 'phrases' | 'wiktapi' | IndividualDictionary;
 
 const sources:Exclude<CleanDictionarySource,'auto'>[]=[
-    'merriam','wiktapi','wiktionary','datamuse','freeDictionary'
+    'merriam','phrases','wiktapi','wiktionary','datamuse','freeDictionary'
 ];
 
 const convertOther=(payload:any[]):CleanSense[]=>unique(
@@ -114,17 +115,18 @@ const convertOther=(payload:any[]):CleanSense[]=>unique(
         ))
 );
 
-const fromProvider=async(term:string,key:string,source:Exclude<CleanDictionarySource,'auto'>):Promise<CleanSense[]>=>{
+const fromProvider=async(term:string,key:string,source:Exclude<CleanDictionarySource,'auto'>,phrasesUid='',phrasesToken=''):Promise<CleanSense[]>=>{
     if(source==='merriam'){
         if(!key.trim())throw Error('Configure sua chave gratuita Merriam-Webster nas opções do dicionário.');
         return fetchLearners(term,key);
     }
+    if(source==='phrases')return unique(await fetchStands4Phrases(term,phrasesUid,phrasesToken));
     if(source==='wiktapi')return unique(await fetchWiktApi(term));
     return convertOther(await lookupIndividualDictionary(term,source));
 };
 
 export async function lookupCleanTerm(
-    term:string,mwKey='',source:CleanDictionarySource='auto'
+    term:string,mwKey='',source:CleanDictionarySource='auto',phrasesUid='',phrasesToken=''
 ):Promise<{senses:CleanSense[];provider:string;warning?:string}>{
     const value=term.trim().slice(0,160);
     if(!value)throw Error('Digite um termo para pesquisar.');
@@ -132,13 +134,14 @@ export async function lookupCleanTerm(
         throw Error('Fonte de dicionário inválida.');
 
     const selected=source==='auto'
-        ? sources.filter(provider=>provider!=='merriam'||Boolean(mwKey.trim()))
+        ? sources.filter(provider=>(provider!=='merriam'||Boolean(mwKey.trim())) &&
+            (provider!=='phrases'||Boolean(phrasesUid.trim()&&phrasesToken.trim())))
         : [source];
 
     const errors:string[]=[];
     for(const provider of selected){
         try {
-            const senses=await fromProvider(value,mwKey,provider);
+            const senses=await fromProvider(value,mwKey,provider,phrasesUid,phrasesToken);
             if(senses.length)
                 return {senses,provider};
         }catch(e){
