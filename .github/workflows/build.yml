@@ -19,6 +19,7 @@ on:
       - 'apply_remote_patch.mjs'
       - 'CleanNoteType.ts'
       - 'CleanDefinitionPanel.tsx'
+      - 'CleanWordFields.tsx'
       - 'CleanDictionary.ts'
       - 'WiktApiProvider.ts'
       - 'apply_clean_patch.mjs'
