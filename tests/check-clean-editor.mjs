@@ -14,7 +14,7 @@ const frame=read('extension/src/ui/components/AnkiUi.tsx');
 assert(model.includes("asbplayer Fluency Clean Unlimited v2"));
 assert(!model.includes("'Portuguese'"));
 assert(!model.includes("'Definition'"));
-assert(model.includes("'Sentence','Word'"));
+assert(model.includes("'Sentence', 'Word'"));
 assert(dialog.includes('<CleanDefinitionPanel'));
 assert(dialog.includes('settings.noteType !== cleanModelName && ('));
 assert(dialog.includes("settings.noteType === cleanModelName ? {gridTemplateColumns:'minmax(0, 1fr)'}"));
