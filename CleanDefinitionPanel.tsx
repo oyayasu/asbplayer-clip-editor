@@ -18,6 +18,7 @@ export type CleanRequest = (input:{
   action:'fluencyCleanLookup'|'fluencySetKey'|'fluencyKeyStatus';
   term?:string;
   key?:string;
+  source?:string;
 })=>Promise<any>;
 
 interface Sense {
@@ -33,6 +34,15 @@ interface Props {
   request:CleanRequest;
 }
 const normalize=(s:string)=>s.trim().toLowerCase().replace(/\s+/g,' ');
+type DictionarySource='auto'|'merriam'|'wiktapi'|'wiktionary'|'datamuse'|'freeDictionary';
+const sourceOptions:{value:DictionarySource;name:string}[]=[
+  {value:'auto',name:'Auto · Merriam-Webster first'},
+  {value:'merriam',name:'Merriam-Webster Learner\'s'},
+  {value:'wiktapi',name:'WiktApi / Wiktionary'},
+  {value:'wiktionary',name:'Wiktionary (direct)'},
+  {value:'datamuse',name:'Datamuse'},
+  {value:'freeDictionary',name:'Free Dictionary API'},
+];
 
 export default function CleanDefinitionPanel({entries,onEntriesChange,request}:Props) {
   const terms=entries.map(entry=>entry.term);
@@ -40,6 +50,7 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
   const [errors,setErrors]=useState<Record<number,string>>({});
   const [senses,setSenses]=useState<Record<number,Sense[]>>({});
   const [retry,setRetry]=useState(0);
+  const [sourceByTerm,setSourceByTerm]=useState<Record<string,DictionarySource>>({});
   const [showKey,setShowKey]=useState(false);
   const [key,setKey]=useState('');
   const [hasKey,setHasKey]=useState(false);
@@ -52,6 +63,7 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
   },[request]);
 
   const termKeys=terms.map(normalize).join('\u0001');
+  const sourceKeys=terms.map(term=>sourceByTerm[normalize(term)]||'auto').join('\u0001');
   useEffect(()=>{
     // The Word inputs are above this panel. They are the only editable
     // vocabulary inputs, so the dictionary can never change their values.
@@ -61,7 +73,8 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
     const timers:Array<ReturnType<typeof setTimeout>>=[];
     for(let index=0;index<ref.current.terms.length;index++){
       const term=ref.current.terms[index]?.trim()||'';
-      if(!term || (retry===0 && ref.current.entries[index]?.definition.trim()))continue;
+      const chosenSource=sourceByTerm[normalize(term)]||'auto';
+      if(!term || (chosenSource==='auto' && retry===0 && ref.current.entries[index]?.definition.trim()))continue;
       const controller={cancelled:false};
       controllers.push(controller);
       const timer=setTimeout(async()=>{
@@ -69,7 +82,7 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
         setLoading(previous=>[...new Set([...previous,index])]);
         setErrors(previous=>({...previous,[index]:''}));
         try{
-          const response=await request({action:'fluencyCleanLookup',term});
+          const response=await request({action:'fluencyCleanLookup',term,source:chosenSource});
           if(controller.cancelled||normalize(ref.current.terms[index]||'')!==normalize(term))return;
           if(response?.error)throw Error(String(response.error));
           const results=Array.isArray(response?.senses)?response.senses as Sense[]:[];
@@ -80,10 +93,10 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
             i===index && normalize(entry.term)===normalize(term)
               ? {
                   ...entry,
-                  partOfSpeech:entry.partOfSpeech||selected.partOfSpeech||'',
-                  ipa:entry.ipa||selected.ipa||'',
-                  definition:entry.definition||selected.definition||'',
-                  source:entry.source||selected.source||'',
+                  partOfSpeech:chosenSource==='auto' ? entry.partOfSpeech||selected.partOfSpeech||'' : selected.partOfSpeech||'',
+                  ipa:chosenSource==='auto' ? entry.ipa||selected.ipa||'' : selected.ipa||'',
+                  definition:chosenSource==='auto' ? entry.definition||selected.definition||'' : selected.definition||'',
+                  source:chosenSource==='auto' ? entry.source||selected.source||'' : selected.source||'',
                 }
               : entry));
         }catch(error){
@@ -100,7 +113,7 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
       controllers.forEach(controller=>controller.cancelled=true);
       timers.forEach(clearTimeout);
     };
-  },[termKeys,retry,request]);
+  },[termKeys,sourceKeys,retry,request]);
 
   const choose=(index:number,sense:Sense)=>{
     onEntriesChange(previous=>previous.map((entry,i)=>i===index
@@ -175,6 +188,26 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
             disabled={!term.trim()} onClick={()=>setRetry(value=>value+1)}>
             <RefreshIcon fontSize="small"/>
           </IconButton>}
+        </Box>
+        <Box sx={{display:'flex',flexWrap:'wrap',gap:1,alignItems:'center'}}>
+          <FormControl size="small" sx={{flex:'1 1 220px',minWidth:0}}>
+            <InputLabel id={'dictionary-'+index}>Dictionary</InputLabel>
+            <Select labelId={'dictionary-'+index} label="Dictionary"
+              value={sourceByTerm[normalize(term)]||'auto'}
+              onChange={event=>setSourceByTerm(previous=>({
+                ...previous,[normalize(term)]:event.target.value as DictionarySource
+              }))}>
+              {sourceOptions.map(option=>
+                <MenuItem key={option.value} value={option.value}>{option.name}</MenuItem>)}
+            </Select>
+          </FormControl>
+          <Typography variant="caption" color="text.secondary" sx={{flex:'1 1 180px'}}>
+            <a href={'https://idioms.thefreedictionary.com/'+encodeURIComponent(term)}
+              target="_blank" rel="noopener noreferrer"
+              style={{color:'inherit',textDecoration:'underline'}}>
+              Look up in TheFreeDictionary
+            </a>
+          </Typography>
         </Box>
         {Boolean(errors[index])&&<Alert severity="warning" sx={{py:0}}>{errors[index]}</Alert>}
         {choices.length>1&&
