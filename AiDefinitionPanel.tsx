@@ -31,8 +31,6 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
   const [success,setSuccess]=useState('');
   const [copied,setCopied]=useState(false);
   const [imported,setImported]=useState<AIResult|null>(null);
-  
-  // NOVO: Estado para o botão de automação
   const [autoLoading,setAutoLoading]=useState(false);
 
   const prompt=useMemo(()=>{
@@ -84,37 +82,45 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
     importAnswer(text);
   };
 
-  // NOVO: Função que conversa com o nosso Content Script
   const autoFetchFromAI = async () => {
+    alert("1. Botão clicado!");
     setError(''); setSuccess('');
     if(!prompt) { setError('Digite uma expressão antes de buscar.'); return; }
     
     setAutoLoading(true);
     try {
-      // Pega a aba que está ativa no momento (o site da IA)
+      // Aviso importante: A aba do ChatGPT precisa estar ATIVA na tela para isso funcionar.
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab?.id) throw new Error('Nenhuma aba ativa encontrada. Abra o ChatGPT/Gemini.');
+      
+      alert("2. Aba encontrada: " + (tab?.url || "Nenhuma"));
+      
+      if (!tab?.id) throw new Error('Nenhuma aba ativa encontrada.');
 
-      // Garante que o script "espião" está injetado na aba
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['content-scripts/ai-automation.js'], 
-      }).catch(() => {}); // Ignora se já estiver injetado
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content-scripts/ai-automation.js'], 
+        });
+        alert("3. Script injetado com sucesso!");
+      } catch (e:any) {
+        alert("3. Aviso (O script pode já estar rodando ou o caminho está errado): " + e.message);
+      }
 
-      // Envia a mensagem com o prompt
       const res = await chrome.tabs.sendMessage(tab.id, {
         type: 'AI_AUTOMATION_LOOKUP',
         prompt: prompt,
       });
+      
+      alert("4. Resposta recebida da IA!");
 
       if (!res?.ok) throw new Error(res?.error || 'Falha na comunicação com a IA.');
 
-      // Se a IA respondeu, joga o texto na caixa de resposta e importa!
       setResponse(res.raw);
-      importAnswer(res.raw); // Reutiliza sua função que já funciona
+      importAnswer(res.raw);
 
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+    } catch (err:any) {
+      alert("ERRO FATAL: " + (err.message || String(err)));
+      setError(err.message || String(err));
     } finally {
       setAutoLoading(false);
     }
@@ -154,7 +160,6 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
       </Select>
     </FormControl>
 
-    {/* NOVO: Botão de Automação */}
     <Box sx={{display:'flex',gap:1,flexWrap:'wrap'}}>
       <Button type="button" variant="contained" color="success" startIcon={<AutoAwesomeOutlinedIcon/>}
         disabled={!prompt || autoLoading} onClick={()=>void autoFetchFromAI()}
