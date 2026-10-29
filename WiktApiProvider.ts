@@ -100,14 +100,10 @@ const fetchResource = async (url: string): Promise<unknown> => {
     }
 };
 
-export async function fetchWiktApi(term: string): Promise<WiktApiSense[]> {
-    const input = term.trim();
-    if (!input || input.length > 160) return [];
+const fetchWiktApiExact = async (input: string): Promise<WiktApiSense[]> => {
     const base = 'https://api.wiktapi.dev/v1/en/word/' +
         encodeURIComponent(input);
 
-    // /definitions includes the part-of-speech (pos) field, while
-    // /word includes pronunciation sounds. Both are filtered to English.
     const results = await Promise.allSettled([
         fetchResource(base + '/definitions?lang=en'),
         fetchResource(base + '?lang=en'),
@@ -116,7 +112,6 @@ export async function fetchWiktApi(term: string): Promise<WiktApiSense[]> {
         ? parseWiktApiEntry(results[0].value) : [];
     const fullEntry = results[1].status === 'fulfilled'
         ? parseWiktApiEntry(results[1].value) : [];
-
     const preferred = definitions.length ? definitions : fullEntry;
     const ipa = fullEntry.find(sense => sense.ipa)?.ipa || '';
     if (!preferred.length && results.every(result => result.status === 'rejected')) {
@@ -126,4 +121,33 @@ export async function fetchWiktApi(term: string): Promise<WiktApiSense[]> {
         ...sense,
         ipa: sense.ipa || ipa,
     }));
+};
+
+/**
+ * Try the entered expression exactly first, then the final two-word idiom
+ * when the dictionary indexes only its lexical core.
+ * E.g. "in (someone's) good graces" -> "good graces".
+ * The user's original term is never modified on the Anki note.
+ */
+export async function fetchWiktApi(term: string): Promise<WiktApiSense[]> {
+    const input = term.trim();
+    if (!input || input.length > 160) return [];
+    const direct = await fetchWiktApiExact(input);
+    if (direct.length) return direct;
+
+    const normalized = input.replace(/[()\[\]]/g, ' ')
+        .replace(/\s+/g, ' ').trim();
+    const tokens = normalized.split(' ').filter(Boolean);
+    if (tokens.length < 3) return [];
+    const ending = tokens.slice(-2).join(' ');
+    if (ending.toLowerCase() === input.toLowerCase()) return [];
+    try {
+        const related = await fetchWiktApiExact(ending);
+        return related.map(sense=>({
+            ...sense,
+            source: sense.source + ' (related entry: '+ending+')',
+        }));
+    } catch {
+        return [];
+    }
 }
