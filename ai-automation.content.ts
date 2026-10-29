@@ -1,4 +1,3 @@
-// ai-automation.content.ts
 export default defineContentScript({
   matches: [
     'https://chatgpt.com/*',
@@ -10,7 +9,6 @@ export default defineContentScript({
     if ((window as any).__aiAutomationLoaded) return;
     (window as any).__aiAutomationLoaded = true;
 
-    // Adaptadores para cada site
     const ADAPTERS: Record<string, any> = {
       'chatgpt.com': {
         input: () => document.querySelector<HTMLElement>('#prompt-textarea'),
@@ -64,15 +62,13 @@ export default defineContentScript({
       const a = getAdapter();
       if (!a) throw new Error('Site de IA não suportado nesta aba');
       const input = a.input();
-      if (!input) throw new Error('Campo da IA não encontrado (DOM mudou?)');
+      if (!input) throw new Error('Campo da IA não encontrado');
       setInputValue(input, prompt);
       await sleep(150);
       const send = a.send();
       if (send && !send.disabled) send.click();
       else {
-        input.dispatchEvent(new KeyboardEvent('keydown', {
-          key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true,
-        }));
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
       }
     }
 
@@ -109,7 +105,7 @@ export default defineContentScript({
           sendResponse({ ok: false, error: err?.message || String(err) });
         }
       })();
-      return true; // Crucial para resposta assíncrona
+      return true;
     });
   },
 });
