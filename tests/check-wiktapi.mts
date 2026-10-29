@@ -53,6 +53,7 @@ if(process.argv.includes('--live')){
   for(const phrase of ['good graces',"in someone's good graces","in (someone's) good graces"]){
     try {
       const results=await fetchWiktApi(phrase);
+      assert(results.length>0,'WiktApi should find an English definition for '+phrase);
       console.log('LIVE IDIOM',JSON.stringify({
         phrase,count:results.length,
         first:results[0]?.definition?.slice(0,115)||null,
