@@ -23,6 +23,7 @@ on:
       - 'CleanVocabularyData.ts'
       - 'CleanDictionary.ts'
       - 'WiktApiProvider.ts'
+      - 'Stands4Phrases.ts'
       - 'apply_clean_patch.mjs'
       - 'tests/**'
       - '.github/workflows/build.yml'
@@ -103,6 +104,9 @@ jobs:
 
       - name: Verificar modelo ilimitado e dados dos cartões
         run: node --experimental-strip-types tests/check-unlimited.mts
+
+      - name: Testar integração STANDS4 Phrases sem credenciais reais
+        run: node --experimental-strip-types tests/check-stands4.mts
 
       - name: Validar seleção por dicionário e prioridade de pesquisa
         run: node tests/check-dictionary-selection.mjs asbplayer
