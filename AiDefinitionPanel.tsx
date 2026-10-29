@@ -83,35 +83,20 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
   };
 
   const autoFetchFromAI = async () => {
-    alert("1. Botão clicado!");
+    alert("1. Botão clicado! Pedindo para o background procurar a IA...");
     setError(''); setSuccess('');
     if(!prompt) { setError('Digite uma expressão antes de buscar.'); return; }
     
     setAutoLoading(true);
     try {
-      // Aviso importante: A aba do ChatGPT precisa estar ATIVA na tela para isso funcionar.
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
-      alert("2. Aba encontrada: " + (tab?.url || "Nenhuma"));
-      
-      if (!tab?.id) throw new Error('Nenhuma aba ativa encontrada.');
-
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          files: ['content-scripts/ai-automation.js'], 
-        });
-        alert("3. Script injetado com sucesso!");
-      } catch (e:any) {
-        alert("3. Aviso (O script pode já estar rodando ou o caminho está errado): " + e.message);
-      }
-
-      const res = await chrome.tabs.sendMessage(tab.id, {
-        type: 'AI_AUTOMATION_LOOKUP',
+      // Agora apenas enviamos uma mensagem para o background da extensão
+      // (O background tem permissão para acessar chrome.tabs e chrome.scripting)
+      const res = await chrome.runtime.sendMessage({
+        type: 'AI_AUTOMATION_REQUEST',
         prompt: prompt,
       });
       
-      alert("4. Resposta recebida da IA!");
+      alert("4. Resposta recebida do background: " + (res?.ok ? "Sucesso!" : "Erro: " + res?.error));
 
       if (!res?.ok) throw new Error(res?.error || 'Falha na comunicação com a IA.');
 
