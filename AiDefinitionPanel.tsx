@@ -51,15 +51,26 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
     }
   };
 
-  const importAnswer=()=>{
+  const importAnswer=(text=response)=>{
     setError('');setSuccess('');
     try{
-      const result=parseAIResult(response,entries);
+      const result=parseAIResult(text,entries);
       onEntriesChange(previous=>mergeAIResult(previous,result,provider));
       setImported(result);
       setSuccess(result.entries.length+' definição(ões) importada(s). Revise antes de exportar.');
     }catch(err){
       setError(err instanceof Error?err.message:String(err));
+    }
+  };
+
+  const importFromClipboard=async()=>{
+    try{
+      const text=await navigator.clipboard.readText();
+      if(!text.trim())throw Error('A área de transferência está vazia.');
+      setResponse(text);
+      importAnswer(text);
+    }catch(err){
+      setError('Não foi possível ler a área de transferência. Cole o JSON no campo acima e clique em importar.');
     }
   };
 
@@ -122,11 +133,18 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
       placeholder='{"version":1,"entries":[{"term":"throw around","partOfSpeech":"phrasal verb","ipa":"","definition":"To discuss ideas informally.","alternativeDefinitions":[]}]}'
       value={response}
       onChange={event=>{setResponse(event.target.value);setError('');setSuccess('');}}/>
-    <Button type="button" variant="contained" color="primary"
-      disabled={!response.trim()||!active.length}
-      onClick={importAnswer} sx={{alignSelf:'flex-start',textTransform:'none'}}>
-      4. Import definitions into card
-    </Button>
+    <Box sx={{display:'flex',gap:1,flexWrap:'wrap'}}>
+      <Button type="button" variant="contained" color="primary"
+        disabled={!active.length} onClick={()=>void importFromClipboard()}
+        sx={{textTransform:'none'}}>
+        4. Import copied response
+      </Button>
+      <Button type="button" variant="outlined" color="primary"
+        disabled={!response.trim()||!active.length}
+        onClick={()=>importAnswer()} sx={{textTransform:'none'}}>
+        Import from text field
+      </Button>
+    </Box>
     {error&&<Alert severity="warning" sx={{py:0}}>{error}</Alert>}
     {success&&<Alert severity="success" sx={{py:0}}>{success}</Alert>}
     {active.map((entry,index)=>{
