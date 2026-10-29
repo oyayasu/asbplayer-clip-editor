@@ -64,14 +64,19 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
   };
 
   const importFromClipboard=async()=>{
-    try{
-      const text=await navigator.clipboard.readText();
-      if(!text.trim())throw Error('A área de transferência está vazia.');
-      setResponse(text);
-      importAnswer(text);
-    }catch(err){
+    let text='';
+    try {
+      text=await navigator.clipboard.readText();
+    } catch {
       setError('Não foi possível ler a área de transferência. Cole o JSON no campo acima e clique em importar.');
+      return;
     }
+    if(!text.trim()){
+      setError('A área de transferência está vazia.');
+      return;
+    }
+    setResponse(text);
+    importAnswer(text);
   };
 
   const changeDefinition=(index:number,value:string)=>{
@@ -124,7 +129,7 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
       control to copy its completed JSON reply, then paste it below.
       Direct scraping of signed-in AI chats is deliberately disabled.
     </Typography>
-    <TextField label="Prompt preview (editable before copying manually)" fullWidth
+    <TextField label="Prompt preview (select to copy manually)" fullWidth
       multiline minRows={2} maxRows={5} size="small"
       value={prompt} InputProps={{readOnly:true}}
       helperText={copied?'Copied to clipboard':''}/>
