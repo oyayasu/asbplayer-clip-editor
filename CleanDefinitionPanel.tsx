@@ -10,29 +10,35 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import CircularProgress from '@mui/material/CircularProgress';
-import Divider from '@mui/material/Divider';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import RefreshIcon from '@mui/icons-material/Refresh';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
-import { MAX_CLEAN_TERMS } from './CleanNoteType';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
-export type CleanRequest = (input:{action:'fluencyCleanLookup'|'fluencySetKey'|'fluencyKeyStatus';term?:string;key?:string})=>Promise<any>;
-interface Sense {partOfSpeech:string;definition:string;ipa:string;source:string;label:string}
+export type CleanRequest = (input:{
+  action:'fluencyCleanLookup'|'fluencySetKey'|'fluencyKeyStatus';
+  term?:string;
+  key?:string;
+})=>Promise<any>;
+
+interface Sense {
+  partOfSpeech:string;
+  definition:string;
+  ipa:string;
+  source:string;
+  label:string;
+}
 interface Props {
   word:string;
   values:Record<string,string>;
-  onWordChange:(word:string)=>void;
   onFieldsChange:(fields:Record<string,string>)=>void;
   request:CleanRequest;
 }
-const fields=['PartOfSpeech','IPA','EnglishDefinition','DictionarySource'];
-const full=(n:number,k:string)=>k+(n===0?'':n+1);
+
+const fields=['PartOfSpeech','IPA','EnglishDefinition','DictionarySource'] as const;
+const full=(index:number,field:string)=>field+(index===0?'':'2');
 const normalize=(s:string)=>s.trim().toLowerCase().replace(/\s+/g,' ');
 
-export default function CleanDefinitionPanel({word,values,onWordChange,onFieldsChange,request}:Props) {
-  const terms=useMemo(()=>Array.from({length:MAX_CLEAN_TERMS},(_,n)=>n===0?word:values[full(n,'Word')]||''),[word,values]);
-  const [count,setCount]=useState(Math.max(1,terms.reduce((max,t,i)=>t.trim()?i+1:max,0)));
+export default function CleanDefinitionPanel({word,values,onFieldsChange,request}:Props) {
+  const terms=useMemo(()=>[word,values.Word2||''],[word,values.Word2]);
   const [loading,setLoading]=useState<number[]>([]);
   const [errors,setErrors]=useState<Record<number,string>>({});
   const [senses,setSenses]=useState<Record<number,Sense[]>>({});
@@ -43,158 +49,171 @@ export default function CleanDefinitionPanel({word,values,onWordChange,onFieldsC
   const [keyMessage,setKeyMessage]=useState('');
   const ref=useRef({terms,values,onFieldsChange});
   useEffect(()=>{ref.current={terms,values,onFieldsChange};},[terms,values,onFieldsChange]);
-  useEffect(()=>{void request({action:'fluencyKeyStatus'}).then(r=>setHasKey(Boolean(r?.configured))).catch(()=>{});},[request]);
   useEffect(()=>{
-    const last=terms.reduce((max,t,i)=>t.trim()?i+1:max,0);
-    if(last>count)setCount(last);
-  },[terms,count]);
+    void request({action:'fluencyKeyStatus'})
+      .then(result=>setHasKey(Boolean(result?.configured))).catch(()=>{});
+  },[request]);
 
   const termKeys=terms.map(normalize).join('\u0001');
   useEffect(()=>{
+    // The Word inputs are above this panel. They are the only editable
+    // vocabulary inputs, so the dictionary can never change their values.
+    setSenses({});
+    setErrors({});
     const controllers:{cancelled:boolean}[]=[];
     const timers:Array<ReturnType<typeof setTimeout>>=[];
-    for(let index=0;index<count;index++){
+    for(let index=0;index<2;index++){
       const term=ref.current.terms[index]?.trim()||'';
       if(!term)continue;
       const controller={cancelled:false};
       controllers.push(controller);
       const timer=setTimeout(async()=>{
         if(controller.cancelled)return;
-        setLoading(p=>[...new Set([...p,index])]);
-        setErrors(p=>({...p,[index]:''}));
+        setLoading(previous=>[...new Set([...previous,index])]);
+        setErrors(previous=>({...previous,[index]:''}));
         try{
           const response=await request({action:'fluencyCleanLookup',term});
           if(controller.cancelled||normalize(ref.current.terms[index]||'')!==normalize(term))return;
           if(response?.error)throw Error(String(response.error));
-          const result=Array.isArray(response?.senses)?response.senses as Sense[]:[];
-          if(!result.length)throw Error('Nenhuma definição encontrada.');
-          setSenses(p=>({...p,[index]:result}));
+          const results=Array.isArray(response?.senses)?response.senses as Sense[]:[];
+          if(!results.length)throw Error('No dictionary definition found.');
+          setSenses(previous=>({...previous,[index]:results}));
           const current=ref.current.values;
-          const update:Record<string,string>={};
-          const selected=result[0];
-          if(!current[full(index,'PartOfSpeech')])update[full(index,'PartOfSpeech')]=selected.partOfSpeech||'';
-          if(!current[full(index,'IPA')])update[full(index,'IPA')]=selected.ipa||'';
-          if(!current[full(index,'EnglishDefinition')])update[full(index,'EnglishDefinition')]=selected.definition||'';
-          if(!current[full(index,'DictionarySource')])update[full(index,'DictionarySource')]=selected.source||'';
-          if(Object.keys(update).length)ref.current.onFieldsChange(update);
-        }catch(e){
-          if(!controller.cancelled)setErrors(p=>({...p,[index]:String(e instanceof Error?e.message:e)}));
+          const selected=results[0];
+          const patch:Record<string,string>={};
+          const valuesFromSource:Record<typeof fields[number],string>={
+            PartOfSpeech:selected.partOfSpeech||'',
+            IPA:selected.ipa||'',
+            EnglishDefinition:selected.definition||'',
+            DictionarySource:selected.source||'',
+          };
+          for(const field of fields){
+            if(!current[full(index,field)]?.trim() && valuesFromSource[field]){
+              patch[full(index,field)]=valuesFromSource[field];
+            }
+          }
+          if(Object.keys(patch).length)ref.current.onFieldsChange(patch);
+        }catch(error){
+          if(!controller.cancelled)setErrors(previous=>({
+            ...previous,[index]:String(error instanceof Error?error.message:error)
+          }));
         }finally{
-          if(!controller.cancelled)setLoading(p=>p.filter(i=>i!==index));
+          if(!controller.cancelled)setLoading(previous=>previous.filter(i=>i!==index));
         }
       },600);
       timers.push(timer);
     }
-    return()=>{controllers.forEach(c=>c.cancelled=true);timers.forEach(clearTimeout);};
-  },[termKeys,count,retry,request]);
+    return()=>{
+      controllers.forEach(controller=>controller.cancelled=true);
+      timers.forEach(clearTimeout);
+    };
+  },[termKeys,retry,request]);
 
-  const changeTerm=(index:number,value:string)=>{
-    const clear:Record<string,string>={};
-    for(const field of fields)clear[full(index,field)]='';
-    if(index===0)onWordChange(value);
-    else clear[full(index,'Word')]=value;
-    onFieldsChange(clear);
-    setSenses(p=>({...p,[index]:[]}));
-    setErrors(p=>({...p,[index]:''}));
-  };
-  const removeTerm=(index:number)=>{
-    const remaining:Array<Record<string,string>>=terms.map((term,i)=>({
-      term,...Object.fromEntries(fields.map(f=>[f,values[full(i,f)]||'']))
-    })).filter((_,i)=>i!==index).filter(item=>item.term.trim());
-    const patch:Record<string,string>={};
-    for(let i=0;i<MAX_CLEAN_TERMS;i++){
-      if(i>0)patch[full(i,'Word')]=remaining[i]?.term||'';
-      for(const f of fields)patch[full(i,f)]=String(remaining[i]?.[f]||'');
-    }
-    onWordChange(remaining[0]?.term||'');
-    onFieldsChange(patch);
-    setCount(Math.max(1,remaining.length));
-    setSenses({});
-    setErrors({});
-    setRetry(r=>r+1);
-  };
   const choose=(index:number,sense:Sense)=>{
     onFieldsChange({
       [full(index,'PartOfSpeech')]:sense.partOfSpeech,
       [full(index,'IPA')]:sense.ipa,
       [full(index,'EnglishDefinition')]:sense.definition,
-      [full(index,'DictionarySource')]:sense.source
+      [full(index,'DictionarySource')]:sense.source,
     });
   };
+
   const saveKey=async()=>{
-    try {
-      const status=await request({action:'fluencySetKey',key:key.trim()});
-      if(status?.error)throw Error(String(status.error));
-      setKey('');setHasKey(Boolean(status.configured));
-      setKeyMessage(status.configured?'Chave salva somente no Brave.':'Chave removida.');
-    } catch(e){setKeyMessage('Não foi possível salvar a chave: '+String(e));}
+    try{
+      const result=await request({action:'fluencySetKey',key:key.trim()});
+      if(result?.error)throw Error(String(result.error));
+      setKey('');
+      setHasKey(Boolean(result.configured));
+      setKeyMessage(result.configured?'API key saved locally.':'API key removed.');
+      setRetry(previous=>previous+1);
+    }catch(error){setKeyMessage('Could not save key: '+String(error));}
   };
-  return <Box sx={{gridColumn:'1/-1',minWidth:0,display:'flex',flexDirection:'column',gap:1.5,
-     border:'1px solid',borderColor:'divider',borderRadius:3,p:2,overflow:'hidden'}}>
+
+  return <Box sx={{
+    gridColumn:'1/-1',minWidth:0,display:'flex',flexDirection:'column',
+    gap:1.5,border:'1px solid',borderColor:'divider',
+    borderRadius:2,p:1.5,overflow:'hidden'
+  }}>
     <Box sx={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:1}}>
-      <Box sx={{minWidth:0}}>
-        <Typography variant="h6" fontWeight={750}>Definition</Typography>
-        <Typography variant="caption" color="text.secondary">Type a word, phrasal verb or idiom. English definitions are filled automatically.</Typography>
-      </Box>
-      <IconButton onClick={()=>setShowKey(v=>!v)} title="Dictionary settings"><SettingsOutlinedIcon/></IconButton>
+      <Typography variant="subtitle2" color="text.secondary">
+        English dictionary details
+      </Typography>
+      <IconButton size="small" title="Dictionary settings" onClick={()=>setShowKey(value=>!value)}>
+        <SettingsOutlinedIcon fontSize="small"/>
+      </IconButton>
     </Box>
     {showKey&&<Box sx={{p:1.5,bgcolor:'action.hover',borderRadius:2,display:'flex',flexDirection:'column',gap:1}}>
-      <Typography variant="subtitle2">Dictionary source</Typography>
+      <Typography variant="subtitle2">Dictionary sources</Typography>
       <Typography variant="caption" color="text.secondary">
-        Merriam-Webster Learner's is preferred when you provide your free API key; Wiktionary and other online dictionaries are used as backups.
+        Merriam-Webster Learner's when configured, with WiktApi and other online dictionaries.
       </Typography>
       <Box sx={{display:'flex',gap:1,alignItems:'center',flexWrap:'wrap'}}>
-        <TextField type="password" variant="outlined" label={hasKey?'Replace Merriam-Webster API key':'Merriam-Webster API key'} size="small"
-            value={key} onChange={e=>setKey(e.target.value)} sx={{flex:1,minWidth:180}}/>
+        <TextField type="password" variant="outlined"
+          label={hasKey?'Replace Merriam-Webster key':'Merriam-Webster API key'}
+          size="small" value={key} onChange={event=>setKey(event.target.value)}
+          sx={{flex:1,minWidth:180}}/>
         <Button variant="outlined" onClick={()=>void saveKey()} disabled={!key.trim()}>Save key</Button>
-        {hasKey&&<Button onClick={()=>{setKey('');void request({action:'fluencySetKey',key:''}).then(()=>{setHasKey(false);setKeyMessage('Chave removida.');});}}>Remove</Button>}
+        {hasKey&&<Button onClick={()=>{
+          void request({action:'fluencySetKey',key:''})
+            .then(()=>{setHasKey(false);setKeyMessage('Key removed.');setRetry(value=>value+1);});
+        }}>Remove</Button>}
       </Box>
-      <Typography variant="caption" color="text.secondary">{keyMessage||(hasKey?'Merriam-Webster connected':'Online fallback available without a key')}</Typography>
+      <Typography variant="caption" color="text.secondary">
+        {keyMessage||(hasKey?'Merriam-Webster enabled':'WiktApi and other sources available without a key')}
+      </Typography>
     </Box>}
-    {Array.from({length:count},(_,index)=>{
-      const value=terms[index]||'';
+    {terms.every(term=>!term.trim())&&
+      <Typography variant="body2" color="text.secondary">
+        Type a term in Word above to fill its English definition automatically.
+      </Typography>
+    }
+    {terms.map((term,index)=>{
+      if(!term.trim())return null;
       const choices=senses[index]||[];
       const isLoading=loading.includes(index);
-      return <Box key={index} sx={{display:'flex',flexDirection:'column',gap:1,p:1.5,bgcolor:'action.hover',borderRadius:2,minWidth:0}}>
-        <Box sx={{display:'flex',alignItems:'center',gap:1,minWidth:0}}>
-          <Typography variant="caption" color="primary" fontWeight={700}>{String(index+1).padStart(2,'0')}</Typography>
-          <TextField size="small" variant="outlined" label="Word or expression" fullWidth
-            placeholder="Enter any term"
-            value={value} onChange={e=>changeTerm(index,e.target.value)}
-            sx={{minWidth:0,flex:1}}/>
-          {isLoading?<CircularProgress size={18}/>:null}
-          <IconButton onClick={()=>setRetry(r=>r+1)} title="Search again" disabled={!value.trim()||isLoading} size="small"><RefreshIcon/></IconButton>
-          {count>1&&<IconButton onClick={()=>removeTerm(index)} title="Remove term" size="small"><DeleteOutlineIcon/></IconButton>}
+      return <Box key={index} sx={{
+        display:'flex',flexDirection:'column',gap:1,p:1.5,
+        bgcolor:'action.hover',borderRadius:2,minWidth:0,
+      }}>
+        <Box sx={{display:'flex',alignItems:'center',gap:1,justifyContent:'space-between'}}>
+          <Typography variant="subtitle2" sx={{overflowWrap:'anywhere',minWidth:0}}>
+            {String(index+1).padStart(2,'0')} · {term}
+          </Typography>
+          {isLoading?<CircularProgress size={18}/>:
+          <IconButton size="small" title="Look up this expression again"
+            disabled={!term.trim()} onClick={()=>setRetry(value=>value+1)}>
+            <RefreshIcon fontSize="small"/>
+          </IconButton>}
         </Box>
         {Boolean(errors[index])&&<Alert severity="warning" sx={{py:0}}>{errors[index]}</Alert>}
         {choices.length>1&&
           <FormControl fullWidth size="small">
-            <InputLabel id={'sense-'+index}>Dictionary sense</InputLabel>
-            <Select labelId={'sense-'+index} label="Dictionary sense"
+            <InputLabel id={'sense-'+index}>Dictionary meaning</InputLabel>
+            <Select labelId={'sense-'+index} label="Dictionary meaning"
               value={Math.max(0,choices.findIndex(s=>s.definition===values[full(index,'EnglishDefinition')]))}
-              onChange={e=>choose(index,choices[Number(e.target.value)])}>
-              {choices.map((sense,i)=><MenuItem key={i} value={i} sx={{whiteSpace:'normal',fontSize:13}}>
-                {String(i+1)+'. '+sense.definition.slice(0,130)}
-              </MenuItem>)}
+              onChange={event=>choose(index,choices[Number(event.target.value)])}>
+              {choices.map((sense,i)=>
+                <MenuItem key={i} value={i} sx={{whiteSpace:'normal',fontSize:13}}>
+                  {String(i+1)+'. '+sense.definition.slice(0,130)}
+                </MenuItem>)}
             </Select>
           </FormControl>}
         <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'minmax(0,1fr) minmax(0,1fr)'},gap:1}}>
-          <TextField size="small" label="Part of speech" fullWidth value={values[full(index,'PartOfSpeech')]||''}
-            onChange={e=>onFieldsChange({[full(index,'PartOfSpeech')]:e.target.value})}/>
-          <TextField size="small" label="IPA (if available)" fullWidth value={values[full(index,'IPA')]||''}
-            onChange={e=>onFieldsChange({[full(index,'IPA')]:e.target.value})}/>
+          <TextField size="small" label="Part of speech" fullWidth
+            value={values[full(index,'PartOfSpeech')]||''}
+            onChange={event=>onFieldsChange({[full(index,'PartOfSpeech')]:event.target.value})}/>
+          <TextField size="small" label="IPA (if available)" fullWidth
+            value={values[full(index,'IPA')]||''}
+            onChange={event=>onFieldsChange({[full(index,'IPA')]:event.target.value})}/>
         </Box>
         <TextField size="small" label="Definition (English)" fullWidth multiline minRows={2} maxRows={4}
-           value={values[full(index,'EnglishDefinition')]||''}
-           onChange={e=>onFieldsChange({[full(index,'EnglishDefinition')]:e.target.value})}/>
+          value={values[full(index,'EnglishDefinition')]||''}
+          onChange={event=>onFieldsChange({[full(index,'EnglishDefinition')]:event.target.value})}/>
         {Boolean(values[full(index,'DictionarySource')])&&
-          <Typography variant="caption" color="text.secondary">Source: {values[full(index,'DictionarySource')]}</Typography>}
+          <Typography variant="caption" color="text.secondary">
+            Source: {values[full(index,'DictionarySource')]}
+          </Typography>}
       </Box>;
     })}
-    <Divider/>
-    <Button type="button" variant="outlined" startIcon={<AddIcon/>} disabled={count>=MAX_CLEAN_TERMS}
-       onClick={()=>setCount(Math.min(MAX_CLEAN_TERMS,count+1))} sx={{alignSelf:'flex-start',textTransform:'none'}}>
-      Add another expression
-    </Button>
   </Box>;
 }
