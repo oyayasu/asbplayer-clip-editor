@@ -27,7 +27,12 @@ export default defineConfig({
     ],
     web_accessible_resources: [
       {
-        resources: ['popup-ui.html', 'content-scripts/ai-automation.js'],
+        resources: [
+          'popup-ui.html', 
+          'content-scripts/ai-automation.js',
+          'fonts/*',
+          'chunks/*'
+        ],
         matches: ['<all_urls>']
       }
     ]
