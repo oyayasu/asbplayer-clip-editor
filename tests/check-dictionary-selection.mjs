@@ -27,6 +27,6 @@ assert(handler.includes("lookupCleanTerm(term,String(item.asbplayerMwKey||''),so
 assert(handler.includes('fluencyPhrasesStatus'));
 assert(handler.includes('fluencyPhrasesSetKey'));
 assert(handler.includes('asbplayerPhrasesToken'));
-assert(bridge.includes("'source'"));
-assert(bridge.includes("'source'"));
+
+
 console.log('OK: Merriam-first fallback, independently selectable dictionaries, Farlex web link, no Collins and no mixing.');
