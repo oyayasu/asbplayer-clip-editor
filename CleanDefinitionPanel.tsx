@@ -15,10 +15,12 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 export type CleanRequest = (input:{
-  action:'fluencyCleanLookup'|'fluencySetKey'|'fluencyKeyStatus';
+  action:'fluencyCleanLookup'|'fluencySetKey'|'fluencyKeyStatus'|'fluencyPhrasesSetKey'|'fluencyPhrasesStatus';
   term?:string;
   key?:string;
   source?:string;
+  uid?:string;
+  token?:string;
 })=>Promise<any>;
 
 interface Sense {
@@ -34,10 +36,11 @@ interface Props {
   request:CleanRequest;
 }
 const normalize=(s:string)=>s.trim().toLowerCase().replace(/\s+/g,' ');
-type DictionarySource='auto'|'merriam'|'wiktapi'|'wiktionary'|'datamuse'|'freeDictionary';
+type DictionarySource='auto'|'merriam'|'phrases'|'wiktapi'|'wiktionary'|'datamuse'|'freeDictionary';
 const sourceOptions:{value:DictionarySource;name:string}[]=[
   {value:'auto',name:'Auto · Merriam-Webster first'},
   {value:'merriam',name:'Merriam-Webster Learner\'s'},
+  {value:'phrases',name:'STANDS4 Phrases · idioms'},
   {value:'wiktapi',name:'WiktApi / Wiktionary'},
   {value:'wiktionary',name:'Wiktionary (direct)'},
   {value:'datamuse',name:'Datamuse'},
@@ -54,12 +57,18 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
   const [showKey,setShowKey]=useState(false);
   const [key,setKey]=useState('');
   const [hasKey,setHasKey]=useState(false);
+  const [phrasesUid,setPhrasesUid]=useState('');
+  const [phrasesToken,setPhrasesToken]=useState('');
+  const [hasPhrasesKey,setHasPhrasesKey]=useState(false);
+  const [phrasesMessage,setPhrasesMessage]=useState('');
   const [keyMessage,setKeyMessage]=useState('');
   const ref=useRef({terms,entries,onEntriesChange});
   useEffect(()=>{ref.current={terms,entries,onEntriesChange};},[entries,onEntriesChange]);
   useEffect(()=>{
     void request({action:'fluencyKeyStatus'})
       .then(result=>setHasKey(Boolean(result?.configured))).catch(()=>{});
+    void request({action:'fluencyPhrasesStatus'})
+      .then(result=>setHasPhrasesKey(Boolean(result?.configured))).catch(()=>{});
   },[request]);
 
   const termKeys=terms.map(normalize).join('\u0001');
@@ -132,6 +141,17 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
     }catch(error){setKeyMessage('Could not save key: '+String(error));}
   };
 
+  const savePhrasesKey=async()=>{
+    try{
+      const result=await request({action:'fluencyPhrasesSetKey',uid:phrasesUid.trim(),token:phrasesToken.trim()});
+      if(result?.error)throw Error(String(result.error));
+      setHasPhrasesKey(Boolean(result.configured));
+      setPhrasesUid('');setPhrasesToken('');
+      setPhrasesMessage(result.configured?'STANDS4 credentials saved locally.':'STANDS4 credentials removed.');
+      setRetry(value=>value+1);
+    }catch(error){setPhrasesMessage('Unable to save STANDS4 settings: '+String(error));}
+  };
+
   return <Box sx={{
     gridColumn:'1/-1',minWidth:0,display:'flex',flexDirection:'column',
     gap:1.5,border:'1px solid',borderColor:'divider',
@@ -148,7 +168,7 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
     {showKey&&<Box sx={{p:1.5,bgcolor:'action.hover',borderRadius:2,display:'flex',flexDirection:'column',gap:1}}>
       <Typography variant="subtitle2">Dictionary sources</Typography>
       <Typography variant="caption" color="text.secondary">
-        Merriam-Webster Learner's when configured, with WiktApi and other online dictionaries.
+        Merriam-Webster first, STANDS4 Phrases for idioms, then WiktApi and other online dictionaries.
       </Typography>
       <Box sx={{display:'flex',gap:1,alignItems:'center',flexWrap:'wrap'}}>
         <TextField type="password" variant="outlined"
@@ -163,6 +183,27 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
       </Box>
       <Typography variant="caption" color="text.secondary">
         {keyMessage||(hasKey?'Merriam-Webster enabled':'WiktApi and other sources available without a key')}
+      </Typography>
+      <Typography variant="subtitle2">STANDS4 Phrases API · idioms and expressions</Typography>
+      <Typography variant="caption" color="text.secondary">
+        Enter the developer User ID and token from STANDS4. Free tier: up to 100 daily requests.
+        A separate token is required for this dictionary.
+      </Typography>
+      <Box sx={{display:'flex',gap:1,flexWrap:'wrap',alignItems:'center'}}>
+        <TextField label="STANDS4 User ID" size="small" variant="outlined" value={phrasesUid}
+          onChange={event=>setPhrasesUid(event.target.value)} sx={{flex:'1 1 140px'}}/>
+        <TextField label="STANDS4 API token" size="small" variant="outlined" type="password"
+          value={phrasesToken} onChange={event=>setPhrasesToken(event.target.value)}
+          sx={{flex:'1 1 180px'}}/>
+        <Button variant="outlined" disabled={!phrasesUid.trim()||!phrasesToken.trim()}
+          onClick={()=>void savePhrasesKey()}>Save STANDS4</Button>
+        {hasPhrasesKey&&<Button onClick={()=>{
+          void request({action:'fluencyPhrasesSetKey',uid:'',token:''})
+            .then(()=>{setHasPhrasesKey(false);setPhrasesMessage('STANDS4 credentials removed.');});
+        }}>Remove</Button>}
+      </Box>
+      <Typography variant="caption" color="text.secondary">
+        {phrasesMessage||(hasPhrasesKey?'STANDS4 configured':'STANDS4 not configured')}
       </Typography>
     </Box>}
     {terms.every(term=>!term.trim())&&
@@ -201,13 +242,7 @@ export default function CleanDefinitionPanel({entries,onEntriesChange,request}:P
                 <MenuItem key={option.value} value={option.value}>{option.name}</MenuItem>)}
             </Select>
           </FormControl>
-          <Typography variant="caption" color="text.secondary" sx={{flex:'1 1 180px'}}>
-            <a href={'https://idioms.thefreedictionary.com/'+encodeURIComponent(term)}
-              target="_blank" rel="noopener noreferrer"
-              style={{color:'inherit',textDecoration:'underline'}}>
-              Look up in TheFreeDictionary
-            </a>
-          </Typography>
+
         </Box>
         {Boolean(errors[index])&&<Alert severity="warning" sx={{py:0}}>{errors[index]}</Alert>}
         {choices.length>1&&
