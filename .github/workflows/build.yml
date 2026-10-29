@@ -1,35 +1,153 @@
-name: Build Chrome Extension
+name: Compilar asbplayer AI Sister
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ ai-sibling-prototype ]
-  workflow_dispatch: 
+    paths:
+      - 'ClipSelectionPanel.tsx'
+      - 'apply_patch.mjs'
+      - 'apply_fluency_patch.mjs'
+      - 'FluencyNoteType.ts'
+      - 'SmartDefinitionPanel.tsx'
+      - 'MultiVocabularyPanel.tsx'
+      - 'FluencyMultiNoteType.ts'
+      - 'apply_multi_patch.mjs'
+      - 'FluencyLookupTransport.ts'
+      - 'apply_lookup_patch.mjs'
+      - 'apply_bridge_patch.mjs'
+      - 'RemoteDictionary.ts'
+      - 'apply_remote_patch.mjs'
+      - 'CleanNoteType.ts'
+      - 'CleanDefinitionPanel.tsx'
+      - 'CleanWordFields.tsx'
+      - 'CleanVocabularyData.ts'
+      - 'CleanDictionary.ts'
+      - 'WiktApiProvider.ts'
+      - 'Stands4Phrases.ts'
+      - 'apply_clean_patch.mjs'
+      - 'AiPrompt.ts'
+      - 'AiDefinitionPanel.tsx'
+      - 'apply_ai_patch.mjs'
+      - 'tests/**'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: read
 
 jobs:
   build:
+    name: Build Chromium
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
-      - name: Checkout repository
+      - name: Obter projeto personalizado
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Baixar código-fonte original
+        uses: actions/checkout@v4
+        with:
+          repository: asbplayer/asbplayer
+          ref: 2ccb722a88776958788b6b049a9e90bc675c0504
+          path: asbplayer
+          persist-credentials: false
+
+      - name: Instalar pnpm correto
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.27.0
+
+      - name: Instalar Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '24.22.1'
+          cache: pnpm
+          cache-dependency-path: asbplayer/pnpm-lock.yaml
 
-      - name: Install dependencies
-        run: npm install
+      - name: Aplicar modificações
+        run: node apply_patch.mjs asbplayer
 
-      - name: Build extension
-        run: npm run build
+      - name: Instalar o modelo e os dicionários automáticos
+        run: node apply_fluency_patch.mjs asbplayer
 
-      - name: Package extension
-        run: |
-          cd .output
-          zip -r ../extension-build.zip .
+      - name: Aplicar editor de múltiplas expressões
+        run: node apply_multi_patch.mjs asbplayer
 
-      - name: Upload artifact
+      - name: Aplicar consultas de dicionários em background
+        run: node apply_lookup_patch.mjs asbplayer
+
+      - name: Testar as consultas de dicionário
+        run: node tests/check-background-lookup.mjs asbplayer
+
+      - name: Integrar consultas pela ponte do Anki
+        run: node apply_bridge_patch.mjs asbplayer
+
+      - name: Testar a ponte de consultas
+        run: node tests/check-iframe-lookup.mjs asbplayer
+
+      - name: Instalar dicionários online com fallback
+        run: node apply_remote_patch.mjs asbplayer
+
+      - name: Validar respostas reais de dicionários online
+        run: node --experimental-strip-types tests/live-dictionary-smoke.mjs
+
+      - name: Testar ida e volta das definições pela ponte do navegador
+        run: node --experimental-strip-types tests/check-lookup-bridge.mts
+
+      - name: Verificar ausência de glossário local e fallback
+        run: node tests/check-remote-only.mjs asbplayer
+
+      - name: Testar entrada livre sem glossário
+        run: node tests/check-arbitrary-terms.mjs asbplayer
+
+      - name: Aplicar novo editor Definition
+        run: node apply_clean_patch.mjs asbplayer
+
+      - name: Validar WiktApi JSON e consultas reais
+        run: node --experimental-strip-types tests/check-wiktapi.mts --live
+
+      - name: Verificar modelo ilimitado e dados dos cartões
+        run: node --experimental-strip-types tests/check-unlimited.mts
+
+      - name: Testar integração STANDS4 Phrases sem credenciais reais
+        run: node --experimental-strip-types tests/check-stands4.mts
+
+      - name: Validar seleção por dicionário e prioridade de pesquisa
+        run: node tests/check-dictionary-selection.mjs asbplayer
+
+      - name: Verificar layout, modelos e controle de áudio
+        run: node tests/check-clean-editor.mjs asbplayer
+
+      - name: Testar integração AnkiConnect
+        run: node tests/check-anki-connect.mjs asbplayer
+
+      - name: Testar campos do modelo multi-expressões
+        run: node tests/check-multi-card.mjs asbplayer
+
+      - name: Aplicar painel da extensão AI Sister
+        run: node apply_ai_patch.mjs asbplayer
+
+      - name: Testar modelo e integração AI Sister
+        run: node --experimental-strip-types tests/check-ai-sibling.mts asbplayer
+
+      - name: Instalar dependências
+        working-directory: asbplayer
+        run: pnpm install --frozen-lockfile
+
+      - name: Conferir TypeScript
+        working-directory: asbplayer
+        run: pnpm --filter @project/extension run compile
+
+      - name: Compilar extensão para Brave
+        working-directory: asbplayer
+        run: pnpm --filter @project/extension run build
+
+      - name: Validar manifesto
+        run: test -s asbplayer/extension/.output/chrome-mv3/manifest.json
+
+      - name: Disponibilizar extensão pronta
         uses: actions/upload-artifact@v4
         with:
-          name: chrome-extension
-          path: extension-build.zip
+          name: ASBPLAYER-AI-SISTER-BRAVE
+          path: asbplayer/extension/.output/chrome-mv3/
+          if-no-files-found: error
+          retention-days: 14
