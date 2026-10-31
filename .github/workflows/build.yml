@@ -1,4 +1,4 @@
-name: Compilar asbplayer AI Sister
+name: Compilar asbplayer AI Sister API (Groq + Gemini)
 
 on:
   workflow_dispatch:
@@ -28,9 +28,8 @@ on:
       - 'AiPrompt.ts'
       - 'AiDefinitionPanel.tsx'
       - 'apply_ai_patch.mjs'
-      - 'ai-automation.content.ts'
-      - 'apply_ai_automation_patch.mjs'
-      - 'tests/check-ai-automation.mjs'
+      - 'ai-api-background.fragment.ts'
+      - 'apply_ai_api_patch.mjs'
       - 'tests/**'
       - '.github/workflows/build.yml'
 
@@ -73,3 +72,90 @@ jobs:
         run: node apply_fluency_patch.mjs asbplayer
 
       - name: Aplicar editor de múltiplas expressões
+        run: node apply_multi_patch.mjs asbplayer
+
+      - name: Aplicar consultas de dicionários em background
+        run: node apply_lookup_patch.mjs asbplayer
+
+      - name: Testar as consultas de dicionário
+        run: node tests/check-background-lookup.mjs asbplayer
+
+      - name: Integrar consultas pela ponte do Anki
+        run: node apply_bridge_patch.mjs asbplayer
+
+      - name: Testar a ponte de consultas
+        run: node tests/check-iframe-lookup.mjs asbplayer
+
+      - name: Instalar dicionários online com fallback
+        run: node apply_remote_patch.mjs asbplayer
+
+      - name: Validar respostas reais de dicionários online
+        run: node --experimental-strip-types tests/live-dictionary-smoke.mjs
+
+      - name: Testar ida e volta das definições pela ponte do navegador
+        run: node --experimental-strip-types tests/check-lookup-bridge.mts
+
+      - name: Verificar ausência de glossário local e fallback
+        run: node tests/check-remote-only.mjs asbplayer
+
+      - name: Testar entrada livre sem glossário
+        run: node tests/check-arbitrary-terms.mjs asbplayer
+
+      - name: Aplicar novo editor Definition
+        run: node apply_clean_patch.mjs asbplayer
+
+      - name: Validar WiktApi JSON e consultas reais
+        run: node --experimental-strip-types tests/check-wiktapi.mts --live
+
+      - name: Verificar modelo ilimitado e dados dos cartões
+        run: node --experimental-strip-types tests/check-unlimited.mts
+
+      - name: Testar integração STANDS4 Phrases sem credenciais reais
+        run: node --experimental-strip-types tests/check-stands4.mts
+
+      - name: Validar seleção por dicionário e prioridade de pesquisa
+        run: node tests/check-dictionary-selection.mjs asbplayer
+
+      - name: Verificar layout, modelos e controle de áudio
+        run: node tests/check-clean-editor.mjs asbplayer
+
+      - name: Testar integração AnkiConnect
+        run: node tests/check-anki-connect.mjs asbplayer
+
+      - name: Testar campos do modelo multi-expressões
+        run: node tests/check-multi-card.mjs asbplayer
+
+      - name: Aplicar painel da extensão AI Sister
+        run: node apply_ai_patch.mjs asbplayer
+
+      - name: Instalar GroqCloud e Google AI Studio
+        run: node apply_ai_api_patch.mjs asbplayer
+
+      - name: Testar configuração, JSON e API isolada
+        run: node tests/check-ai-api.mjs asbplayer
+
+      - name: Testar modelo e integração AI Sister
+        run: node --experimental-strip-types tests/check-ai-sibling.mts asbplayer
+
+      - name: Instalar dependências
+        working-directory: asbplayer
+        run: pnpm install --frozen-lockfile
+
+      - name: Conferir TypeScript
+        working-directory: asbplayer
+        run: pnpm --filter @project/extension run compile
+
+      - name: Compilar extensão para Brave
+        working-directory: asbplayer
+        run: pnpm --filter @project/extension run build
+
+      - name: Validar manifesto
+        run: test -s asbplayer/extension/.output/chrome-mv3/manifest.json
+
+      - name: Disponibilizar extensão pronta
+        uses: actions/upload-artifact@v4
+        with:
+          name: ASBPLAYER-AI-SISTER-GROQ-GEMINI-BRAVE
+          path: asbplayer/extension/.output/chrome-mv3/
+          if-no-files-found: error
+          retention-days: 14
