@@ -1,4 +1,4 @@
-import React,{useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useState} from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -32,6 +32,56 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
   const [copied,setCopied]=useState(false);
   const [imported,setImported]=useState<AIResult|null>(null);
   const [autoLoading,setAutoLoading]=useState(false);
+  const [keyInput,setKeyInput]=useState('');
+  const [configured,setConfigured]=useState<Record<AIProvider,boolean>>({groq:false,google:false});
+  const [configLoading,setConfigLoading]=useState(true);
+  const [keySaving,setKeySaving]=useState(false);
+
+  useEffect(()=>{
+    let mounted=true;
+    void chrome.runtime.sendMessage({type:'AI_API_STATUS'}).then(res=>{
+      if(!mounted)return;
+      if(!res?.ok)throw Error(res?.error||'Não foi possível carregar as chaves.');
+      setConfigured(res.configured);
+      setProvider(res.provider);
+    }).catch(err=>{
+      if(mounted)setError(err instanceof Error?err.message:String(err));
+    }).finally(()=>{if(mounted)setConfigLoading(false);});
+    return ()=>{mounted=false;};
+  },[]);
+
+  const saveKey=async()=>{
+    setError('');setSuccess('');setKeySaving(true);
+    try{
+      const res=await chrome.runtime.sendMessage({
+        type:'AI_API_SAVE_KEY',provider,key:keyInput.trim(),
+      });
+      if(!res?.ok)throw Error(res?.error||'Não foi possível salvar a chave.');
+      setConfigured(previous=>({...previous,[provider]:true}));
+      setKeyInput('');
+      setSuccess('Chave de '+AI_PROVIDERS[provider].label+' salva apenas neste navegador.');
+    }catch(err){setError(err instanceof Error?err.message:String(err));}
+    finally{setKeySaving(false);}
+  };
+
+  const removeKey=async()=>{
+    setError('');setSuccess('');setKeySaving(true);
+    try{
+      const res=await chrome.runtime.sendMessage({type:'AI_API_REMOVE_KEY',provider});
+      if(!res?.ok)throw Error(res?.error||'Não foi possível remover a chave.');
+      setConfigured(previous=>({...previous,[provider]:false}));
+      setKeyInput('');
+      setSuccess('Chave removida deste navegador.');
+    }catch(err){setError(err instanceof Error?err.message:String(err));}
+    finally{setKeySaving(false);}
+  };
+
+  const chooseProvider=(next:AIProvider)=>{
+    setProvider(next);setKeyInput('');setImported(null);setSuccess('');setError('');setCopied(false);
+    void chrome.runtime.sendMessage({type:'AI_API_SELECT_PROVIDER',provider:next})
+      .then(res=>{if(!res?.ok)throw Error(res?.error||'Falha ao salvar o provedor.');})
+      .catch(err=>setError(err instanceof Error?err.message:String(err)));
+  };
 
   const prompt=useMemo(()=>{
     try{return buildAIPrompt(sentence,entries);}
@@ -83,37 +133,22 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
   };
 
   const autoFetchFromAI = async () => {
-    setError(''); setSuccess('');
-    if(!prompt) { setError('Digite uma expressão antes de buscar.'); return; }
-    
-    // NOVO: Checagem de segurança para evitar erro de contexto perdido
-    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
-      alert("O Chrome perdeu a conexão com a extensão porque ela foi atualizada ou recarregada.\n\nPor favor, aperte F5 nesta página (YouTube) e no ChatGPT para continuar.");
-      return;
-    }
-
+    setError('');setSuccess('');
+    if(!prompt){setError('Adicione uma expressão antes de consultar.');return;}
+    if(!configured[provider]){setError('Salve a chave de '+AI_PROVIDERS[provider].label+' primeiro.');return;}
+    if(!chrome?.runtime?.id){setError('A extensão foi recarregada. Atualize esta página e tente novamente.');return;}
     setAutoLoading(true);
-    try {
-      alert("1. Botão clicado! Pedindo para o background procurar a IA...");
-      
-      const res = await chrome.runtime.sendMessage({
-        type: 'AI_AUTOMATION_REQUEST',
-        prompt: prompt,
+    try{
+      const res=await chrome.runtime.sendMessage({
+        type:'AI_API_GENERATE',provider,prompt,
       });
-      
-      alert("4. Resposta recebida do background: " + (res?.ok ? "Sucesso!" : "Erro: " + res?.error));
-
-      if (!res?.ok) throw new Error(res?.error || 'Falha na comunicação com a IA.');
-
-      setResponse(res.raw);
-      importAnswer(res.raw);
-
-    } catch (err:any) {
-      alert("ERRO FATAL: " + (err.message || String(err)));
-      setError(err.message || String(err));
-    } finally {
-      setAutoLoading(false);
-    }
+      if(!res?.ok)throw Error(res?.error||'A API não retornou uma resposta.');
+      const raw=String(res.raw||'');
+      setResponse(raw);
+      importAnswer(raw);
+    }catch(err){
+      setError(err instanceof Error?err.message:String(err));
+    }finally{setAutoLoading(false);}
   };
 
   const changeDefinition=(index:number,value:string)=>{
@@ -135,44 +170,56 @@ export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Pro
       <Typography fontWeight={750} variant="h6">AI Definitions</Typography>
     </Box>
     <Typography variant="body2" color="text.secondary">
-      The AI stays signed in on its own website. No passwords, cookies or API keys
-      are read by this extension.
+      Generate American-English dictionary definitions directly with your selected API.
+      Only one service is called per request. The subtitle and selected terms are sent
+      to that service; keys are stored locally by the extension, not in Anki.
     </Typography>
-    <FormControl fullWidth size="small">
-      <InputLabel id="ai-provider">AI service</InputLabel>
-      <Select labelId="ai-provider" label="AI service" value={provider}
-        onChange={event=>{
-          setProvider(event.target.value as AIProvider);
-          setImported(null);setSuccess('');setCopied(false);
-        }}>
+    <FormControl fullWidth size="small" disabled={configLoading||autoLoading}>
+      <InputLabel id="ai-provider">Active AI service</InputLabel>
+      <Select labelId="ai-provider" label="Active AI service" value={provider}
+        onChange={event=>chooseProvider(event.target.value as AIProvider)}>
         {(Object.keys(AI_PROVIDERS) as AIProvider[]).map(id=>
           <MenuItem key={id} value={id}>{AI_PROVIDERS[id].label}</MenuItem>)}
       </Select>
     </FormControl>
+    <Typography variant="caption" color="text.secondary">
+      Model: {selected.model} · {configured[provider]?'API key saved':'No API key saved'}
+    </Typography>
+    <TextField fullWidth size="small" type="password" label={selected.label+' API key'}
+      autoComplete="off" value={keyInput}
+      placeholder={configured[provider]?'Saved — enter a new key to replace':'Paste your API key here'}
+      onChange={event=>setKeyInput(event.target.value)}
+      helperText="Your key is kept in extension-local storage (not encrypted); use only your personal Brave profile."/>
+    <Box sx={{display:'flex',gap:1,flexWrap:'wrap',alignItems:'center'}}>
+      <Button type="button" variant="outlined" disabled={!keyInput.trim()||keySaving}
+        sx={{textTransform:'none'}} onClick={()=>void saveKey()}>
+        {keySaving?'Saving...':'Save key'}
+      </Button>
+      <Button type="button" color="error" variant="text" disabled={!configured[provider]||keySaving}
+        sx={{textTransform:'none'}} onClick={()=>void removeKey()}>Remove saved key</Button>
+      <Button component="a" href={selected.url} target="_blank" rel="noopener noreferrer"
+        variant="text" sx={{textTransform:'none'}}>Get API key</Button>
+    </Box>
 
     <Box sx={{display:'flex',gap:1,flexWrap:'wrap'}}>
       <Button type="button" variant="contained" color="success" startIcon={<AutoAwesomeOutlinedIcon/>}
-        disabled={!prompt || autoLoading} onClick={()=>void autoFetchFromAI()}
+        disabled={!prompt || autoLoading || !configured[provider] || configLoading} onClick={()=>void autoFetchFromAI()}
         sx={{textTransform:'none',flex:'1 1 100%', py: 1.5}}>
-        {autoLoading ? 'Aguardando resposta da IA...' : '3. Get AI response automatically'}
+        {autoLoading ? 'Generating definitions...' : 'Generate definitions with '+selected.label}
       </Button>
     </Box>
 
     <Typography variant="caption" color="text.secondary" align="center">
-      --- OR use the manual method below ---
+      --- Manual JSON fallback ---
     </Typography>
 
     <Box sx={{display:'flex',gap:1,flexWrap:'wrap'}}>
       <Button type="button" variant="outlined" startIcon={<ContentCopyOutlinedIcon/>}
         disabled={!prompt} onClick={()=>void copyPrompt()}
         sx={{textTransform:'none',flex:'1 1 180px'}}>
-        1. Copy structured prompt
+        Copy structured prompt
       </Button>
-      <Button component="a" href={selected.url} target="_blank" rel="noopener noreferrer"
-        variant="outlined" startIcon={<OpenInNewOutlinedIcon/>}
-        sx={{textTransform:'none',flex:'1 1 170px'}}>
-        2. Open {selected.label}
-      </Button>
+
     </Box>
     
     <TextField label="Prompt preview (select to copy manually)" fullWidth
