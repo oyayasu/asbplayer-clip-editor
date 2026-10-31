@@ -24,7 +24,7 @@ interface Props {
 const normalized=(text:string)=>text.trim().replace(/\s+/g,' ').toLowerCase();
 
 export default function AiDefinitionPanel({sentence,entries,onEntriesChange}:Props) {
-  const [provider,setProvider]=useState<AIProvider>('chatgpt');
+  const [provider,setProvider]=useState<AIProvider>('groq');
   const [response,setResponse]=useState('');
   const [error,setError]=useState('');
   const [success,setSuccess]=useState('');
