@@ -13,7 +13,7 @@ assert(prompt.includes('"good graces"'));
 assert(prompt.includes('Return ONLY a valid JSON object'));
 assert(prompt.includes('IPA'));
 assert(!prompt.includes('Translate into Portuguese'));
-assert.equal(Object.keys(AI_PROVIDERS).length,3);
+assert.equal(Object.keys(AI_PROVIDERS).length,2);
 
 const reply=JSON.stringify({version:1,entries:[
   {term:'snap',partOfSpeech:'verb',ipa:'/snæp/',definition:'To break suddenly with a sharp sound.',alternativeDefinitions:['To speak sharply.']},
@@ -24,9 +24,9 @@ const parsed=parseAIResult('Here is the JSON:\n'+reply,entries);
 assert.equal(parsed.entries.length,3);
 assert.equal(parsed.entries[1].partOfSpeech,'phrasal verb');
 assert.equal(parsed.entries[0].alternativeDefinitions[0],'To speak sharply.');
-const updated=mergeAIResult(entries,parsed,'gemini');
+const updated=mergeAIResult(entries,parsed,'google');
 assert.equal(updated[1].definition,'To discuss ideas casually.');
-assert.equal(updated[2].source,'AI · Gemini');
+assert.equal(updated[2].source,'AI · Google AI Studio');
 assert.equal(updated[0].ipa,'/snæp/');
 const padded=parseAIResult('~~~\n'+reply+'\n~~~',entries);
 assert.equal(padded.entries.length,3);
