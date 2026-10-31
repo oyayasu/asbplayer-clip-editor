@@ -9,7 +9,6 @@ import Select from '@mui/material/Select';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
-import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import type {VocabularyEntry} from './CleanVocabularyData';
 import {
