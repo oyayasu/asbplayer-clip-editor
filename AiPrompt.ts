@@ -1,10 +1,9 @@
 import type {VocabularyEntry} from './CleanVocabularyData';
 
-export type AIProvider = 'chatgpt'|'gemini'|'claude';
-export const AI_PROVIDERS:Record<AIProvider,{label:string;url:string}>={
-  chatgpt:{label:'ChatGPT',url:'https://chatgpt.com/'},
-  gemini:{label:'Gemini',url:'https://gemini.google.com/app'},
-  claude:{label:'Claude',url:'https://claude.ai/new'},
+export type AIProvider = 'groq'|'google';
+export const AI_PROVIDERS:Record<AIProvider,{label:string;url:string;model:string}>={
+  groq:{label:'GroqCloud',url:'https://console.groq.com/keys',model:'openai/gpt-oss-120b'},
+  google:{label:'Google AI Studio',url:'https://aistudio.google.com/apikey',model:'gemini-3.8-flash'},
 };
 export type AIMeaning={
   term:string;
