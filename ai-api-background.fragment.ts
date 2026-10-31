@@ -38,7 +38,6 @@
 
     const aiApiRequest = async (
         url: string,
-        key: string,
         authHeader: Record<string,string>,
         body: unknown,
     ): Promise<any> => {
@@ -78,7 +77,6 @@
         if (provider === 'groq') {
             const response = await aiApiRequest(
                 'https://api.groq.com/openai/v1/chat/completions',
-                key,
                 { Authorization: 'Bearer ' + key },
                 {
                     model: 'openai/gpt-oss-120b',
@@ -103,7 +101,6 @@
         } else {
             const response = await aiApiRequest(
                 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',
-                key,
                 { 'x-goog-api-key': key },
                 {
                     contents: [{
