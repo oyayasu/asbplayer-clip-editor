@@ -132,6 +132,9 @@ jobs:
       - name: Integrar automação do Tab Relay
         run: node apply_json_relay_patch.mjs asbplayer
 
+      - name: Verificar relay através do iframe do editor
+        run: node --experimental-strip-types tests/check-json-relay.mts asbplayer
+
       - name: Instalar dependências
         working-directory: asbplayer
         run: pnpm install --frozen-lockfile
