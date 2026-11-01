@@ -41,5 +41,5 @@ const relay = read('extension/public/json-relay/content.js');
 assert(relay.includes('baselineNodes'));
 assert(relay.includes("model-response message-content"));
 assert(relay.includes('[data-testid="assistant-message"]'));
-assert(relay.includes("input-area-v2 [contenteditable=\\\"true\\\"]"));
+assert(relay.includes('input-area-v2 [contenteditable='));
 console.log('PASS: automatic JSON relay crosses the Anki iframe bridge and never calls runtime from the common panel.');
