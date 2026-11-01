@@ -92,6 +92,21 @@ for (const file of ['AiPrompt.ts', 'AiDefinitionPanel.tsx']) {
     "'https://en.wiktionary.org/*', 'https://api.datamuse.com/*', 'https://api.wiktapi.dev/*', 'https://www.stands4.com/*'",
     "'https://en.wiktionary.org/*', 'https://api.datamuse.com/*'", 'remove clean-only API hosts'));
 }
+// Use an exact, short name in the browser extension manager and toolbar.
+{
+  const file = 'extension/wxt.config.ts';
+  let s = read(file);
+  s = swap(s,
+    'const extName = project.names.short;',
+    "const extName = 'ASB PLAYER JSON-MANUAL';",
+    'extension display title');
+  s = swap(s,
+    'const name = `${title}: Language-learning with subtitles`;',
+    'const name = title;',
+    'manifest display name (no appended tagline)');
+  write(file, s);
+}
+
 for (const file of [
   'common/components/CleanDefinitionPanel.tsx',
   'extension/src/services/clean-dictionary.ts',
