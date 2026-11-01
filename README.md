@@ -6,9 +6,9 @@ Custom asbplayer extension for learning English through real subtitle scenes, th
 
 The **asbplayer Fluency Clean Unlimited v2** Anki model uses a fully manual AI workflow. The extension does **not** connect to an AI service, request dictionary definitions over the internet, store API keys, or automate AI web pages for this model.
 
-1. Capture a scene/subtitle in asbplayer and open the Anki editor.
-2. In **Word / Expression**, enter one or more words, phrasal verbs or idioms. Terms do not have to appear verbatim in the subtitle.
-3. Click **Copy prompt** in the contextual English definitions panel. It includes the original subtitle and all entered terms.
+1. Capture a scene/subtitle in asbplayer and open the Anki editor. The **Word / Expression** input, generated prompt and JSON paste field are at the **top** of the editor, regardless of which Anki note model is selected.
+2. Enter a word, phrasal verb or idiom. Terms do not have to appear verbatim in the subtitle. With the **asbplayer Fluency Clean Unlimited v2** model selected, you can add multiple terms with **+**. With another model selected, the manual editor fills the regular Word and Definition fields for a single term.
+3. Click **Copy prompt**. It includes the original subtitle and all entered terms.
 4. Paste that prompt into **any AI chat** you choose and ask it to reply.
 5. Copy the complete JSON reply and paste it into **Paste the JSON response from your AI**.
 6. Click **Import JSON**. The first definition for each term is the meaning that the AI judged most appropriate for the sentence. If the AI supplied other meanings, choose one from the dropdown.
@@ -48,7 +48,7 @@ Only the selected meaning is saved to the card. Other options remain available w
 
 The manual editor reuses **asbplayer Fluency Clean Unlimited v2**; there is no forced migration or model renaming. It supports an arbitrary number of expressions per scene using VocabularyData plus pre-rendered Vocabulary HTML. Existing note models and cards are not modified. Audio, screenshots, source information, and clip selection remain part of the editor.
 
-To configure the model for the first time, open the asbplayer Anki settings and select **Activate unlimited Anki model**. Keep the desktop Anki application and AnkiConnect available when exporting cards.
+To store **multiple expressions in one card**, open the asbplayer Anki settings and select **Activate unlimited Anki model**. This is optional for the single-term manual prompt/JSON workflow. Keep the desktop Anki application and AnkiConnect available when exporting cards.
 
 ## Install / build
 
