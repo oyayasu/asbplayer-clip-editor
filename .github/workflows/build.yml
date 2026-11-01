@@ -126,11 +126,11 @@ jobs:
       - name: Instalar dicionário manual por prompt e JSON (sem API)
         run: node apply_manual_ai_patch.mjs asbplayer
 
+      - name: Testar JSON manual original antes da automação
+        run: node --experimental-strip-types tests/check-manual-ai.mts asbplayer
+
       - name: Integrar automação do Tab Relay
         run: node apply_json_relay_patch.mjs asbplayer
-
-      - name: Testar JSON, múltiplos significados e ausência de APIs
-        run: node --experimental-strip-types tests/check-manual-ai.mts asbplayer
 
       - name: Instalar dependências
         working-directory: asbplayer
