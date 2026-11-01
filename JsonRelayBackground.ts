@@ -18,7 +18,7 @@ export function initJsonRelay(): void {
    const target=tabs.find(t=>typeof t.id==='number'&&matchHost(t.url,provider));
    if(!target?.id)throw Error('Abra uma aba do '+provider+' e faça login antes de gerar.');
    const tabId=target.id;
-   await browser.scripting.executeScript({target:{tabId},files:['json-relay/content.js']});
+   await browser.scripting.executeScript({target:{tabId},files:['json-relay/content.js' as any]});
    const result=await browser.tabs.sendMessage(tabId,{namespace:'asb-json-relay',action:'RUN',prompt});
    if(!result?.ok)throw Error(result?.error||'A captura falhou.');
    return {ok:true,response:result.response};
