@@ -144,6 +144,10 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
    "permissions = [...permissions, 'tabCapture', 'activeTab', 'contextMenus', 'sidePanel', 'offscreen'];",
    "permissions = [...permissions, 'tabCapture', 'activeTab', 'contextMenus', 'sidePanel', 'offscreen', 'scripting'];",
    'Chromium scripting permission');
+ s=replace(s,
+   "id: project.extension.firefox.id,",
+   "id: 'build-automatic-firefox@local',",
+   'custom Firefox extension id');
  s=replace(s,"        return {\n            ...manifest,\n            permissions,","        return {\n            ...manifest,\n            host_permissions: Array.from(new Set([...(manifest.host_permissions || []), 'https://chatgpt.com/*', 'https://chat.openai.com/*', 'https://gemini.google.com/*'])),\n            permissions,",'host permissions');
  write(f,s);
 }
