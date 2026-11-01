@@ -32,10 +32,12 @@ for (const source of [controller, tabController]) {
 }
 assert(background.includes("msg?.action!=='ASB_JSON_RELAY_RUN'"));
 assert(background.includes('browser.scripting.executeScript'));
+assert(!background.includes('enqueueUpdateAlert'));
+assert(!background.includes('updateListener'));
 assert(manifest.includes("'scripting'"));
 assert(manifest.includes('https://chatgpt.com/*'));
 assert(manifest.includes('https://gemini.google.com/*'));
-assert(manifest.includes('https://claude.ai/*'));
+assert(!manifest.includes('https://claude.ai/*'));
 assert(existsSync(root + '/extension/public/json-relay/content.js'));
 const relay = read('extension/public/json-relay/content.js');
 assert(relay.includes('baselineNodes'));
