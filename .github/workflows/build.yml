@@ -36,7 +36,6 @@ on:
 
 permissions:
   contents: read
-
 jobs:
   build:
     name: Build Chromium
@@ -45,7 +44,6 @@ jobs:
     steps:
     - name: Obter projeto personalizado
         uses: actions/checkout@v4
-
       - name: Baixar código-fonte original
         uses: actions/checkout@v4
         with:
