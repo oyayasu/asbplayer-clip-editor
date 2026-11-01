@@ -11,7 +11,7 @@ assert(prompt.includes('American English'));
 assert(prompt.includes('Return ONLY valid raw JSON'));
 assert(prompt.includes('take off'));
 assert(prompt.includes('get along'));
-assert(!prompt.includes('Portuguese translation;'));
+assert(prompt.includes('not a Portuguese translation'));
 const result = {
   version:2, sentence, entries:[
     {term:'take off',meanings:[
