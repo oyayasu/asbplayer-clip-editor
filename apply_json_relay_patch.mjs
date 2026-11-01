@@ -121,6 +121,19 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  const f='extension/src/entrypoints/background.ts';
  let s=read(f);
  s="import { initJsonRelay } from '@/services/json-relay-background';\n"+s;
+ s=s.replace("import { enqueueUpdateAlert } from '@/services/update-alert';\n",'');
+ const updateBlock=[
+ "    const updateListener = async (details: Browser.runtime.InstalledDetails) => {",
+ "        if (details.reason !== browser.runtime.OnInstalledReason.UPDATE) {",
+ "            return;",
+ "        }",
+ "",
+ "        void enqueueUpdateAlert();",
+ "    };",
+ "",
+ ].join('\n');
+ s=s.replace(updateBlock,'');
+ s=s.replace("    browser.runtime.onInstalled.addListener((details) => void updateListener(details));\n",'');
  s=replace(s,'export default defineBackground(() => {','export default defineBackground(() => {\n    initJsonRelay();','background initialization');
  write(f,s);
 }
@@ -128,7 +141,7 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  const f='extension/wxt.config.ts';
  let s=read(f);
  s=replace(s,"let permissions = ['tabs', 'storage', 'unlimitedStorage'];","let permissions = ['tabs', 'storage', 'unlimitedStorage', 'scripting'];",'manifest permissions');
- s=replace(s,"        return {\n            ...manifest,\n            permissions,","        return {\n            ...manifest,\n            host_permissions: Array.from(new Set([...(manifest.host_permissions || []), 'https://chatgpt.com/*', 'https://chat.openai.com/*', 'https://gemini.google.com/*', 'https://claude.ai/*'])),\n            permissions,",'host permissions');
+ s=replace(s,"        return {\n            ...manifest,\n            permissions,","        return {\n            ...manifest,\n            host_permissions: Array.from(new Set([...(manifest.host_permissions || []), 'https://chatgpt.com/*', 'https://chat.openai.com/*', 'https://gemini.google.com/*'])),\n            permissions,",'host permissions');
  write(f,s);
 }
 console.log('PASS: ASB JSON relay integrated into background, public assets and Chromium manifest.');
