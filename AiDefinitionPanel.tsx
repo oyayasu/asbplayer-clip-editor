@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
@@ -22,7 +22,18 @@ const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCa
 
 export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, showEntryFields = false }: Props) {
   const [response, setResponse] = useState('');
-  const [provider, setProvider] = useState('chatgpt');
+  const [provider, setProvider] = useState(() => {
+    try { return localStorage.getItem('asb-json-relay-provider') || 'chatgpt'; }
+    catch { return 'chatgpt'; }
+  });
+  const [mode, setMode] = useState<'manual' | 'automatic'>(() => {
+    try { return localStorage.getItem('asb-json-relay-mode') === 'automatic' ? 'automatic' : 'manual'; }
+    catch { return 'manual'; }
+  });
+  const attempted = useRef('');
+  const currentRequest = useRef('');
+  const busy = useRef(false);
+  const mounted = useRef(true);
   const [working, setWorking] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [message, setMessage] = useState('');
@@ -51,26 +62,49 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
   };
 
 
-  const generateAutomatically = async () => {
-    setError(''); setMessage('');
-    if (!prompt || working) return;
-    setWorking(true);
+  // A new subtitle/term changes this identity; older responses must never overwrite it.
+  const requestKey = provider + '\\u001d' + signature;
+  currentRequest.current = mode === 'automatic' ? requestKey : '';
+  useEffect(() => {
     try {
-      // Routed to the extension service worker; the browser tab stays in the background.
-      const result = await chrome.runtime.sendMessage({
-        action: 'ASB_JSON_RELAY_RUN', provider, prompt,
-      });
-      if (!result?.ok) throw Error(result?.error || 'Could not collect the AI response.');
-      const text = String(result.response || '');
-      const parsed = parseAIResult(text, entries, sentence);
-      setResponse(text);
-      onEntriesChange(previous => mergeAIResult(previous, parsed));
-      setImported({ result: parsed, signature });
-      setMessage('AI JSON captured and validated. Review definitions before exporting.');
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally { setWorking(false); }
-  };
+      localStorage.setItem('asb-json-relay-mode', mode);
+      localStorage.setItem('asb-json-relay-provider', provider);
+    } catch { /* storage disabled */ }
+  }, [mode, provider]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; currentRequest.current = ''; };
+  }, []);
+  useEffect(() => {
+    if (mode !== 'automatic' || !prompt || !activeEntries.length || busy.current || attempted.current === requestKey) return;
+    const timer = setTimeout(() => {
+      if (busy.current || currentRequest.current !== requestKey) return;
+      busy.current = true;
+      attempted.current = requestKey;
+      setWorking(true); setError(''); setMessage('');
+      void (async () => {
+        try {
+          const result = await chrome.runtime.sendMessage({action:'ASB_JSON_RELAY_RUN',provider,prompt});
+          if (!result?.ok) throw Error(result?.error || 'Could not collect the AI response.');
+          const raw = String(result.response || '');
+          const parsed = parseAIResult(raw, entries, sentence);
+          if (mounted.current && currentRequest.current === requestKey) {
+            setResponse(raw);
+            onEntriesChange(previous => mergeAIResult(previous, parsed));
+            setImported({result:parsed,signature});
+            setMessage('Definitions filled automatically. Review before exporting.');
+          }
+        } catch (cause) {
+          if (mounted.current && currentRequest.current === requestKey)
+            setError(cause instanceof Error ? cause.message : String(cause));
+        } finally {
+          busy.current = false;
+          if (mounted.current) setWorking(false);
+        }
+      })();
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [mode, provider, prompt, requestKey, working]);
 
   const importJSON = () => {
     setError('');
@@ -116,50 +150,53 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
     borderColor:'divider', display:'flex', flexDirection:'column', gap:1,
   }}>
     <Box sx={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:1}}>
-      <Typography variant="subtitle2" fontWeight={700} sx={{mr:1}}>
-        Manual AI · JSON
-      </Typography>
-      <Button type="button" size="small" variant="outlined"
-        startIcon={<ContentCopyOutlinedIcon/>} disabled={!prompt}
-        onClick={() => { void copyPrompt(); }} sx={{textTransform:'none'}}>
-        Copy prompt
-      </Button>
-      <Button type="button" size="small" variant="text" disabled={!prompt}
-        onClick={() => setShowPrompt(value => !value)} sx={{textTransform:'none'}}>
-        {showPrompt ? 'Hide prompt' : 'Show prompt'}
-      </Button>
+      <Typography variant="subtitle2" fontWeight={700} sx={{mr:1}}>AI · JSON</Typography>
+      <Button type="button" size="small" variant={mode === 'manual' ? 'contained' : 'outlined'}
+        onClick={() => setMode('manual')} sx={{textTransform:'none'}}>Manual</Button>
+      <Button type="button" size="small" variant={mode === 'automatic' ? 'contained' : 'outlined'}
+        onClick={() => setMode('automatic')} sx={{textTransform:'none'}}>Automatic</Button>
     </Box>
-    <Box sx={{display:'flex',alignItems:'center',gap:1,flexWrap:'wrap'}}>
-      <FormControl size="small" sx={{minWidth:125}}>
-        <InputLabel id="json-relay-provider">AI tab</InputLabel>
-        <Select labelId="json-relay-provider" label="AI tab" value={provider}
-          onChange={event=>setProvider(String(event.target.value))} disabled={working}>
-          <MenuItem value="chatgpt">ChatGPT</MenuItem>
-          <MenuItem value="gemini">Gemini</MenuItem>
-          <MenuItem value="claude">Claude</MenuItem>
-        </Select>
-      </FormControl>
-      <Button type="button" variant="outlined" size="small" disabled={!prompt || working}
-        onClick={()=>{void generateAutomatically();}} sx={{textTransform:'none'}}>
-        {working ? 'Waiting for AI…' : 'Generate automatically'}
-      </Button>
-      <Typography variant="caption" color="text.secondary">Requires an open, signed-in AI tab. Manual JSON remains available.</Typography>
-    </Box>
-    {showPrompt && <TextField label="Generated prompt" value={prompt}
-      fullWidth multiline minRows={1} maxRows={3} size="small"
-      InputProps={{readOnly:true}} />}
-    <Box sx={{display:'flex',alignItems:'flex-end',gap:1,minWidth:0}}>
-      <TextField label="Paste AI JSON" value={response}
-        onChange={event => { setResponse(event.target.value); setError(''); setMessage(''); }}
-        fullWidth multiline minRows={2} maxRows={5} size="small"
-        placeholder="Paste the JSON response here" />
-      <Button type="button" size="small" variant="contained"
-        disabled={!response.trim() || !activeEntries.length}
-        onClick={importJSON}
-        sx={{textTransform:'none',flexShrink:0,whiteSpace:'nowrap',mb:1}}>
-        Import JSON
-      </Button>
-    </Box>
+    {mode === 'automatic' ? (
+      <Box sx={{display:'flex',alignItems:'center',gap:1,flexWrap:'wrap'}}>
+        <FormControl size="small" sx={{minWidth:125}}>
+          <InputLabel id="json-relay-provider">AI tab</InputLabel>
+          <Select labelId="json-relay-provider" label="AI tab" value={provider}
+            onChange={event=>{attempted.current='';setProvider(String(event.target.value));}}>
+            <MenuItem value="chatgpt">ChatGPT</MenuItem>
+            <MenuItem value="gemini">Gemini</MenuItem>
+            <MenuItem value="claude">Claude</MenuItem>
+          </Select>
+        </FormControl>
+        <Typography variant="caption" color="text.secondary">
+          {working ? 'Waiting for AI response…' : prompt ? 'Automatically fills fields from your open AI tab.' : 'Enter a word to generate.'}
+        </Typography>
+        {!!error && <Button type="button" size="small" onClick={()=>{attempted.current='';setError('');setWorking(v=>!v);}}>Retry</Button>}
+      </Box>
+    ) : (
+      <>
+        <Box sx={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:1}}>
+          <Button type="button" size="small" variant="outlined"
+            startIcon={<ContentCopyOutlinedIcon/>} disabled={!prompt}
+            onClick={() => { void copyPrompt(); }} sx={{textTransform:'none'}}>Copy prompt</Button>
+          <Button type="button" size="small" variant="text" disabled={!prompt}
+            onClick={() => setShowPrompt(value => !value)} sx={{textTransform:'none'}}>
+            {showPrompt ? 'Hide prompt' : 'Show prompt'}
+          </Button>
+        </Box>
+        {showPrompt && <TextField label="Generated prompt" value={prompt}
+          fullWidth multiline minRows={1} maxRows={3} size="small"
+          InputProps={{readOnly:true}} />}
+        <Box sx={{display:'flex',alignItems:'flex-end',gap:1,minWidth:0}}>
+          <TextField label="Paste AI JSON" value={response}
+            onChange={event => { setResponse(event.target.value); setError(''); setMessage(''); }}
+            fullWidth multiline minRows={2} maxRows={5} size="small"
+            placeholder="Paste the JSON response here" />
+          <Button type="button" size="small" variant="contained"
+            disabled={!response.trim() || !activeEntries.length} onClick={importJSON}
+            sx={{textTransform:'none',flexShrink:0,whiteSpace:'nowrap',mb:1}}>Import JSON</Button>
+        </Box>
+      </>
+    )}
     {error && <Alert severity="warning" sx={{py:0}}>{error}</Alert>}
     {message && <Alert severity="success" sx={{py:0}}>{message}</Alert>}
     {activeEntries.map((entry, index) => {
