@@ -1,4 +1,4 @@
-name: Compilar extensão para Brave
+name: build-automatic
 
 on:
   workflow_dispatch:
@@ -153,7 +153,7 @@ jobs:
       - name: Disponibilizar extensão pronta
         uses: actions/upload-artifact@v4
         with:
-          name: ASB-PLAYER-JSON-MANUAL-RELAY
+          name: build-automatic
           path: asbplayer/extension/.output/chrome-mv3/
           if-no-files-found: error
           retention-days: 14
