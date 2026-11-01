@@ -1,50 +1,63 @@
-# asbplayer Fluency Multi — Brave / Chrome
+# asbplayer — English Fluency (manual AI JSON)
 
-Extensão personalizada do asbplayer para montar cartões no Anki com áudio e imagem originais de filmes, séries e vídeos, com vários termos no mesmo cartão.
+Custom asbplayer extension for learning English through real subtitle scenes, then creating Anki cards with the original sentence, audio, image and one or more vocabulary terms.
 
-## Correção de consulta (v3.5)
+## English definitions: copy prompt → paste JSON (no dictionary API)
 
-O asbplayer transmite respostas do Anki via uma ponte que acrescenta `messageId` aos objetos. As definições online chegam como listas e estavam sendo transformadas em objetos antes da leitura, deixando classe gramatical, definição e IPA em branco enquanto a tradução ainda aparecia.
+The **asbplayer Fluency Clean Unlimited v2** Anki model uses a fully manual AI workflow. The extension does **not** connect to an AI service, request dictionary definitions over the internet, store API keys, or automate AI web pages for this model.
 
-A resposta do dicionário agora é encapsulada num objeto `fluencyDictionary` e desembrulhada no editor; isso preserva todos os significados e a pronúncia. Um teste de regressão reproduz a conversão incorreta anterior e valida a ida e volta pela ponte.
+1. Capture a scene/subtitle in asbplayer and open the Anki editor.
+2. In **Word / Expression**, enter one or more words, phrasal verbs or idioms. Terms do not have to appear verbatim in the subtitle.
+3. Click **Copy prompt** in the contextual English definitions panel. It includes the original subtitle and all entered terms.
+4. Paste that prompt into **any AI chat** you choose and ask it to reply.
+5. Copy the complete JSON reply and paste it into **Paste the JSON response from your AI**.
+6. Click **Import JSON**. The first definition for each term is the meaning that the AI judged most appropriate for the sentence. If the AI supplied other meanings, choose one from the dropdown.
+7. Edit **Definition (English)**, **Part of speech**, or **IPA** as needed, then send the Anki card as usual.
 
-As três fontes de dicionário são consultadas independentemente, com erros explícitos quando todas falham. Dados ARPAbet não são apresentados como IPA.
+The prompt asks for **American English**, grammatical classification, IPA when reliable (otherwise blank), and **English-only** definitions. Alternative meanings can have their own grammatical class and IPA. The JSON must repeat the original subtitle and terms: a mismatched subtitle, missing term or invalid JSON is rejected rather than silently filling the wrong card.
 
-As consultas seguem exclusivamente online, sem IA, sem palavras pré-cadastradas e sem dependência do texto da legenda. A compilação é automatizada; ainda é necessário testar o comportamento no Brave localmente.
+### Expected JSON structure
 
-## Preenchimento automático, sem IA e sem listas prontas
+```json
+{
+  "version": 2,
+  "sentence": "The plane is about to take off.",
+  "entries": [
+    {
+      "term": "take off",
+      "meanings": [
+        {
+          "definition": "To leave the ground and begin to fly.",
+          "partOfSpeech": "phrasal verb",
+          "ipa": "/teɪk ɔf/"
+        },
+        {
+          "definition": "To remove a piece of clothing.",
+          "partOfSpeech": "phrasal verb",
+          "ipa": "/teɪk ɔf/"
+        }
+      ]
+    }
+  ]
+}
+```
 
-1. Abra uma cena no editor do asbplayer.
-2. Em **Vocabulary**, digite **qualquer palavra, phrasal verb ou expressão idiomática** no campo Expressão 1. O termo não precisa aparecer na legenda.
-3. Depois que você para de digitar, a extensão consulta dicionários na internet automaticamente:
-   - **Wiktionary**, **Datamuse** e **Free Dictionary API**: classe gramatical, definição em inglês e IPA quando encontrado;
-   - **MyMemory**: significado em português.
-4. Confira os dados e exporte o cartão ao Anki. **Adicionar expressão** permite incluir mais termos na mesma cena, até cinco.
-5. Se houver falha de rede ou termo não encontrado, você verá um aviso e poderá usar **Buscar novamente**. O campo permanece editável.
+Only the selected meaning is saved to the card. Other options remain available while the JSON is loaded in the editor. AI-generated information can be inaccurate; verify the chosen definition and transcription.
 
-Nenhuma definição, palavra ou expressão vem de uma lista local. Não é necessário ter uma conta de IA, uma chave de API ou digitar a frase da legenda. A legenda é usada apenas para o conteúdo de texto e mídia do cartão; não é enviada para escolher os significados.
+## Anki model and existing content
 
-**Limites dos dicionários:** nenhuma base de dados cobre literalmente todas as palavras, gírias e expressões. Em expressões com vários significados, o primeiro resultado pode não ser o desejado. IPA de expressões completas nem sempre existe. A API de tradução MyMemory pode ter limitações de qualidade e cota. Nenhum campo deve ser inventado quando não houver informação adequada.
+The manual editor reuses **asbplayer Fluency Clean Unlimited v2**; there is no forced migration or model renaming. It supports an arbitrary number of expressions per scene using VocabularyData plus pre-rendered Vocabulary HTML. Existing note models and cards are not modified. Audio, screenshots, source information, and clip selection remain part of the editor.
 
-## Cartão no Anki
+To configure the model for the first time, open the asbplayer Anki settings and select **Activate unlimited Anki model**. Keep the desktop Anki application and AnkiConnect available when exporting cards.
 
-O modelo **asbplayer Fluency Multi v1** exibe áudio e imagem da cena na frente. O verso mostra a frase da legenda e cada termo digitado, com classe gramatical, IPA quando disponível, definição em inglês e português.
+## Install / build
 
-O modelo é separado das notas anteriores. Não sobrescreve cartões existentes.
+1. Open [GitHub Actions](https://github.com/oyayasu/asbplayer-clip-editor/actions/workflows/build.yml) and download the artifact from a successful **Build Chromium** run.
+2. Extract its ZIP. In `chrome://extensions` or `brave://extensions`, enable developer mode and choose **Load unpacked**.
+3. Select the extracted directory containing `manifest.json`.
 
-## Instalação
+The pipeline checks out the pinned upstream asbplayer source, applies the existing project patches, installs the manual AI JSON panel, and validates its input format before compiling. The manual UI requires no AI API keys.
 
-1. Vá a [Actions](https://github.com/oyayasu/asbplayer-clip-editor/actions) e baixe o artefato da última compilação bem-sucedida.
-2. Extraia o ZIP. Em `brave://extensions`, ative **Modo desenvolvedor**, clique em **Carregar sem compactação** e selecione a pasta contendo `manifest.json`.
-3. Abra o Anki desktop com [AnkiConnect](https://ankiweb.net/shared/info/2055492159).
-4. Nas configurações do asbplayer, seção Anki, clique **Ativar modelo multi-expressões no Anki** apenas se ainda não configurou esse modelo.
+**Scope:** legacy asbplayer note types may retain their former dictionary integrations; the Clean Unlimited model's definitions use **only** the copy/paste process described here.
 
-## Privacidade
-
-Os termos que você pesquisar são enviados aos provedores públicos de dicionário e tradução. Não são usados serviços de IA. Nenhuma chave pessoal é necessária.
-
-## Desenvolvimento
-
-Compilação automatizada no GitHub Actions com Node.js 24 e pnpm 11.27.0. A compilação valida tipos e manifesto, mas não substitui teste manual no navegador com o Anki aberto.
-
-Este projeto modifica o [asbplayer](https://github.com/asbplayer/asbplayer), distribuído sob a licença AGPL-3.0-or-later. Não é afiliado ao projeto original.
+This project is based on [asbplayer](https://github.com/asbplayer/asbplayer), licensed under AGPL-3.0-or-later. Not affiliated with the upstream project.
