@@ -73,6 +73,17 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange }
     });
   };
 
+  const changeField = (activeIndex: number, field: 'partOfSpeech' | 'ipa' | 'definition', value: string) => {
+    onEntriesChange(previous => {
+      let slot = -1;
+      return previous.map(item => {
+        if (!item.term.trim()) return item;
+        slot++;
+        return slot === activeIndex ? {...item, [field]:value} : item;
+      });
+    });
+  };
+
   return <Box sx={{
     gridColumn:'1/-1', minWidth:0, display:'flex', flexDirection:'column', gap:1.5,
     p:1.5, border:'1px solid', borderColor:'divider', borderRadius:2, overflow:'hidden',
@@ -132,16 +143,13 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange }
         </FormControl>}
         <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'minmax(0,1fr) minmax(0,1fr)'},gap:1}}>
           <TextField label="Part of speech" size="small" fullWidth value={entry.partOfSpeech}
-            onChange={event => onEntriesChange(previous => previous.map(item =>
-              item === entry ? {...item,partOfSpeech:event.target.value} : item))}/>
+            onChange={event => changeField(index, 'partOfSpeech', event.target.value)}/>
           <TextField label="IPA (American English, if available)" size="small" fullWidth value={entry.ipa}
-            onChange={event => onEntriesChange(previous => previous.map(item =>
-              item === entry ? {...item,ipa:event.target.value} : item))}/>
+            onChange={event => changeField(index, 'ipa', event.target.value)}/>
         </Box>
         <TextField label="Definition (English)" fullWidth multiline minRows={2} maxRows={4}
           size="small" value={entry.definition}
-          onChange={event => onEntriesChange(previous => previous.map(item =>
-            item === entry ? {...item,definition:event.target.value} : item))}/>
+          onChange={event => changeField(index, 'definition', event.target.value)}/>
         {entry.source && <Typography variant="caption" color="text.secondary">
           {entry.source} · Review AI output for accuracy.
         </Typography>}
