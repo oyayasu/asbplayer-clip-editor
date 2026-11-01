@@ -24,8 +24,10 @@ const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCa
 export default function AiDefinitionPanel({ sentence, entries, request, onEntriesChange, showEntryFields = false }: Props) {
   const [response, setResponse] = useState('');
   const [provider, setProvider] = useState(() => {
-    try { return localStorage.getItem('asb-json-relay-provider') || 'chatgpt'; }
-    catch { return 'chatgpt'; }
+    try {
+      const saved = localStorage.getItem('asb-json-relay-provider');
+      return saved === 'gemini' ? 'gemini' : 'chatgpt';
+    } catch { return 'chatgpt'; }
   });
   const [mode, setMode] = useState<'manual' | 'automatic'>(() => {
     try { return localStorage.getItem('asb-json-relay-mode') === 'automatic' ? 'automatic' : 'manual'; }
@@ -162,7 +164,6 @@ export default function AiDefinitionPanel({ sentence, entries, request, onEntrie
             onChange={event=>{currentRequest.current='';setError('');setMessage('');setProvider(String(event.target.value));}}>
             <MenuItem value="chatgpt">ChatGPT</MenuItem>
             <MenuItem value="gemini">Gemini</MenuItem>
-            <MenuItem value="claude">Claude</MenuItem>
           </Select>
         </FormControl>
         <Button type="button" size="small" variant="contained"
