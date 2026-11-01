@@ -9,6 +9,55 @@ const replace=(s,a,b,label)=>{if(!s.includes(a))throw Error('JSON relay patch: '
 fs.mkdirSync(path.join(root,'extension/public/json-relay'),{recursive:true});
 fs.copyFileSync('json-relay/content.js',path.join(root,'extension/public/json-relay/content.js'));
 fs.copyFileSync('JsonRelayBackground.ts',path.join(root,'extension/src/services/json-relay-background.ts'));
+
+{
+ const f='common/components/AnkiDialog.tsx';
+ let s=read(f);
+ s=replace(s,'    inTutorial?: boolean;\n}','    inTutorial?: boolean;\n    jsonRelayRequest?: (input: { provider: string; prompt: string }) => Promise<{ ok: boolean; response?: string; error?: string }>;\n}','Anki dialog relay prop');
+ s=replace(s,'    inTutorial,\n}: AnkiDialogProps) => {','    inTutorial,\n    jsonRelayRequest,\n}: AnkiDialogProps) => {','Anki dialog relay destructuring');
+ s=replace(s,'                    <AiDefinitionPanel\n                        sentence={text}','                    <AiDefinitionPanel\n                        sentence={text}\n                        request={jsonRelayRequest}','pass relay request to panel');
+ write(f,s);
+}
+{
+ const f='extension/src/ui/components/AnkiUi.tsx';
+ let s=read(f);
+ const anchor="    const showAnkiDialogQuickSelectFtue = !isMobile && ftueHasSeenAnkiDialogQuickSelect === false;";
+ const callback=[
+ "    const jsonRelayRequest = useCallback(",
+ "        async ({ provider, prompt }: { provider: string; prompt: string }) => {",
+ "            return bridge.sendMessageFromServerAndExpectResponse(",
+ "                { command: 'json-relay', messageId: uuidv4(), provider, prompt } as any,",
+ "                190_000",
+ "            );",
+ "        },",
+ "        [bridge]",
+ "    );",
+ "",
+ anchor
+ ].join('\n');
+ s=replace(s,anchor,callback,'Anki UI relay callback');
+ s=replace(s,'                        mp3Encoder={mp3Encoder}\n','                        mp3Encoder={mp3Encoder}\n                        jsonRelayRequest={jsonRelayRequest}\n','pass relay callback to dialog');
+ write(f,s);
+}
+for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/src/controllers/tab-anki-ui-controller.ts']) {
+ let s=read(f);
+ const relayCase=[
+ "                        case 'json-relay': {",
+ "                            const relayMessage = message as any;",
+ "                            const relayResult = await browser.runtime.sendMessage({",
+ "                                action: 'ASB_JSON_RELAY_RUN',",
+ "                                provider: relayMessage.provider,",
+ "                                prompt: relayMessage.prompt,",
+ "                            });",
+ "                            client.sendMessage({ ...relayResult, messageId: relayMessage.messageId });",
+ "                            return;",
+ "                        }",
+ "                        case 'openSettings': {",
+ ].join('\n');
+ s=replace(s,"                        case 'openSettings': {",relayCase,'controller relay forwarding: '+f);
+ write(f,s);
+}
+
 {
  const f='extension/src/entrypoints/background.ts';
  let s=read(f);
