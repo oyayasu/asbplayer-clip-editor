@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Obter projeto personalizado
+    - name: Obter projeto personalizado
         uses: actions/checkout@v4
 
       - name: Baixar código-fonte original
@@ -125,8 +125,7 @@ jobs:
 
       - name: Testar campos do modelo multi-expressões
         run: node tests/check-multi-card.mjs asbplayer
-
-      - name: Instalar automação de IA
+        - name: Instalar automação de IA
         run: node apply_ai_automation_patch.mjs asbplayer
 
       - name: Testar automação de IA
