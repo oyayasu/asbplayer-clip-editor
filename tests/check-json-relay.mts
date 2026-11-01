@@ -34,7 +34,8 @@ for (const source of [controller, tabController]) {
   assert(source.includes('messageId: relayMessage.messageId'));
 }
 assert(background.includes("msg?.action!=='ASB_JSON_RELAY_RUN'"));
-assert(background.includes('browser.scripting.executeScript'));
+assert(background.includes('scriptingApi?.executeScript'));
+assert(background.includes("browser.tabs.executeScript(tabId,{file:'/json-relay/content.js'})"));
 assert(!background.includes('claude.ai'));
 assert(!extensionBackground.includes('enqueueUpdateAlert'));
 assert(!extensionBackground.includes('updateListener'));
