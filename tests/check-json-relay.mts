@@ -10,11 +10,14 @@ const ui = read('extension/src/ui/components/AnkiUi.tsx');
 const controller = read('extension/src/controllers/anki-ui-controller.ts');
 const tabController = read('extension/src/controllers/tab-anki-ui-controller.ts');
 const background = read('extension/src/services/json-relay-background.ts');
+const extensionBackground = read('extension/src/entrypoints/background.ts');
 const manifest = read('extension/wxt.config.ts');
 
 assert(!panel.includes('chrome.runtime'));
 assert(panel.includes('request?:'));
 assert(panel.includes('await request({ provider, prompt })'));
+assert(!panel.includes('<MenuItem value="claude">Claude</MenuItem>'));
+assert(panel.includes("saved === 'gemini' ? 'gemini' : 'chatgpt'"));
 assert(dialog.includes('jsonRelayRequest?:'));
 assert(dialog.includes('label="Part of speech"'));
 assert(dialog.includes('label="IPA"'));
@@ -32,8 +35,9 @@ for (const source of [controller, tabController]) {
 }
 assert(background.includes("msg?.action!=='ASB_JSON_RELAY_RUN'"));
 assert(background.includes('browser.scripting.executeScript'));
-assert(!background.includes('enqueueUpdateAlert'));
-assert(!background.includes('updateListener'));
+assert(!background.includes('claude.ai'));
+assert(!extensionBackground.includes('enqueueUpdateAlert'));
+assert(!extensionBackground.includes('updateListener'));
 assert(manifest.includes("'scripting'"));
 assert(manifest.includes('https://chatgpt.com/*'));
 assert(manifest.includes('https://gemini.google.com/*'));
@@ -41,6 +45,7 @@ assert(!manifest.includes('https://claude.ai/*'));
 assert(existsSync(root + '/extension/public/json-relay/content.js'));
 const relay = read('extension/public/json-relay/content.js');
 assert(relay.includes('baselineNodes'));
+assert(!relay.includes('claude.ai'));
 assert(relay.includes("model-response message-content"));
 assert(relay.includes('[data-testid="assistant-message"]'));
 assert(relay.includes('input-area-v2 [contenteditable='));
