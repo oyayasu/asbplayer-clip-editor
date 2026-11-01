@@ -1,4 +1,4 @@
-name: build-automatic
+name: build-automatic-firefox
 
 on:
   workflow_dispatch:
@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Chromium
+    name: Build Firefox
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -143,17 +143,17 @@ jobs:
         working-directory: asbplayer
         run: pnpm --filter @project/extension run compile
 
-      - name: Compilar extensão para Brave
+      - name: Compilar extensão para Firefox
         working-directory: asbplayer
-        run: pnpm --filter @project/extension run build
+        run: pnpm --filter @project/extension run build:firefox
 
       - name: Validar manifesto
-        run: test -s asbplayer/extension/.output/chrome-mv3/manifest.json
+        run: test -s asbplayer/extension/.output/firefox-mv2/manifest.json
 
       - name: Disponibilizar extensão pronta
         uses: actions/upload-artifact@v4
         with:
-          name: build-automatic
-          path: asbplayer/extension/.output/chrome-mv3/
+          name: build-automatic-firefox
+          path: asbplayer/extension/.output/firefox-mv2/
           if-no-files-found: error
           retention-days: 14
