@@ -1,52 +1,24 @@
-name: Compilar asbplayer AI Sister
+name: Compilar Fluency para Firefox
 
 on:
-  workflow_dispatch:
   push:
-    paths:
-      - 'ClipSelectionPanel.tsx'
-      - 'apply_patch.mjs'
-      - 'apply_fluency_patch.mjs'
-      - 'FluencyNoteType.ts'
-      - 'SmartDefinitionPanel.tsx'
-      - 'MultiVocabularyPanel.tsx'
-      - 'FluencyMultiNoteType.ts'
-      - 'apply_multi_patch.mjs'
-      - 'FluencyLookupTransport.ts'
-      - 'apply_lookup_patch.mjs'
-      - 'apply_bridge_patch.mjs'
-      - 'RemoteDictionary.ts'
-      - 'apply_remote_patch.mjs'
-      - 'CleanNoteType.ts'
-      - 'CleanDefinitionPanel.tsx'
-      - 'CleanWordFields.tsx'
-      - 'CleanVocabularyData.ts'
-      - 'CleanDictionary.ts'
-      - 'WiktApiProvider.ts'
-      - 'Stands4Phrases.ts'
-      - 'apply_clean_patch.mjs'
-      - 'AiPrompt.ts'
-      - 'AiDefinitionPanel.tsx'
-      - 'apply_ai_patch.mjs'
-      - 'ai-automation.content.ts'
-      - 'apply_ai_automation_patch.mjs'
-      - 'tests/check-ai-automation.mjs'
-      - 'tests/**'
-      - '.github/workflows/build.yml'
+    branches:
+      - main-firefox
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build Chromium
+  firefox:
+    name: Firefox desktop (Manifest V2)
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Obter projeto personalizado
+      - name: Obter personalização
         uses: actions/checkout@v4
 
-      - name: Baixar código-fonte original
+      - name: Baixar fonte do asbplayer
         uses: actions/checkout@v4
         with:
           repository: asbplayer/asbplayer
@@ -54,109 +26,103 @@ jobs:
           path: asbplayer
           persist-credentials: false
 
-      - name: Instalar pnpm correto
+      - name: Configurar pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 11.27.0
 
-      - name: Instalar Node.js 24
+      - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '24.22.1'
           cache: pnpm
           cache-dependency-path: asbplayer/pnpm-lock.yaml
 
-      - name: Aplicar modificações
+      - name: Aplicar seleção de trechos
         run: node apply_patch.mjs asbplayer
 
-      - name: Instalar o modelo e os dicionários automáticos
+      - name: Aplicar modelo Fluency
         run: node apply_fluency_patch.mjs asbplayer
 
       - name: Aplicar editor de múltiplas expressões
         run: node apply_multi_patch.mjs asbplayer
 
-      - name: Aplicar consultas de dicionários em background
+      - name: Aplicar consultas em background
         run: node apply_lookup_patch.mjs asbplayer
 
-      - name: Testar as consultas de dicionário
+      - name: Verificar consultas em background
         run: node tests/check-background-lookup.mjs asbplayer
 
-      - name: Integrar consultas pela ponte do Anki
+      - name: Integrar ponte de dicionário
         run: node apply_bridge_patch.mjs asbplayer
 
-      - name: Testar a ponte de consultas
+      - name: Verificar consulta em iframe
         run: node tests/check-iframe-lookup.mjs asbplayer
 
-      - name: Instalar dicionários online com fallback
+      - name: Aplicar dicionários externos
         run: node apply_remote_patch.mjs asbplayer
 
-      - name: Validar respostas reais de dicionários online
-        run: node --experimental-strip-types tests/live-dictionary-smoke.mjs
-
-      - name: Testar ida e volta das definições pela ponte do navegador
-        run: node --experimental-strip-types tests/check-lookup-bridge.mts
-
-      - name: Verificar ausência de glossário local e fallback
+      - name: Verificar consultas somente online
         run: node tests/check-remote-only.mjs asbplayer
 
-      - name: Testar entrada livre sem glossário
+      - name: Verificar entrada livre de expressões
         run: node tests/check-arbitrary-terms.mjs asbplayer
 
-      - name: Aplicar novo editor Definition
+      - name: Aplicar editor de definições
         run: node apply_clean_patch.mjs asbplayer
 
-      - name: Validar WiktApi JSON e consultas reais
-        run: node --experimental-strip-types tests/check-wiktapi.mts --live
+      - name: Testar integração de definições
+        run: node --experimental-strip-types tests/check-lookup-bridge.mts
 
-      - name: Verificar modelo ilimitado e dados dos cartões
+      - name: Testar modelo ilimitado
         run: node --experimental-strip-types tests/check-unlimited.mts
 
-      - name: Testar integração STANDS4 Phrases sem credenciais reais
-        run: node --experimental-strip-types tests/check-stands4.mts
-
-      - name: Validar seleção por dicionário e prioridade de pesquisa
+      - name: Testar dicionário e fontes
         run: node tests/check-dictionary-selection.mjs asbplayer
 
-      - name: Verificar layout, modelos e controle de áudio
+      - name: Testar editor limpo
         run: node tests/check-clean-editor.mjs asbplayer
 
-      - name: Testar integração AnkiConnect
+      - name: Testar integração Anki
         run: node tests/check-anki-connect.mjs asbplayer
 
-      - name: Testar campos do modelo multi-expressões
+      - name: Testar cartões multi-expressões
         run: node tests/check-multi-card.mjs asbplayer
 
-      - name: Instalar automação de IA
-        run: node apply_ai_automation_patch.mjs asbplayer
-
-      - name: Testar automação de IA
-        run: node tests/check-ai-automation.mjs asbplayer
-
-      - name: Aplicar painel da extensão AI Sister
-        run: node apply_ai_patch.mjs asbplayer
-
-      - name: Testar modelo e integração AI Sister
-        run: node --experimental-strip-types tests/check-ai-sibling.mts asbplayer
+      - name: Identificar extensão Firefox
+        run: node apply_firefox_patch.mjs asbplayer main
 
       - name: Instalar dependências
         working-directory: asbplayer
         run: pnpm install --frozen-lockfile
 
-      - name: Conferir TypeScript
+      - name: Verificar TypeScript
         working-directory: asbplayer
         run: pnpm --filter @project/extension run compile
 
-      - name: Compilar extensão para Brave
+      - name: Compilar para Firefox
         working-directory: asbplayer
-        run: pnpm --filter @project/extension run build
+        run: pnpm --filter @project/extension run build:firefox
 
-      - name: Validar manifesto
-        run: test -s asbplayer/extension/.output/chrome-mv3/manifest.json
+      - name: Validar manifesto e identidade Firefox
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const file = 'asbplayer/extension/.output/firefox-mv2/manifest.json';
+          const m = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (m.manifest_version !== 2) throw Error('Expected Firefox MV2');
+          if (m.browser_specific_settings?.gecko?.id !== 'asbplayer-fluency-firefox@oyayasu.github') throw Error('Unexpected Gecko ID');
+          if (!m.sidebar_action) throw Error('Missing Firefox sidebar');
+          for (const name of ['sidePanel', 'offscreen', 'tabCapture']) {
+            if (m.permissions?.includes(name)) throw Error('Chromium-only permission: ' + name);
+          }
+          console.log('Firefox manifest valid:', m.name);
+          NODE
 
-      - name: Disponibilizar extensão pronta
+      - name: Publicar pacote para testes
         uses: actions/upload-artifact@v4
         with:
-          name: ASBPLAYER-AI-SISTER-BRAVE
-          path: asbplayer/extension/.output/chrome-mv3/
+          name: ASBPLAYER-FLUENCY-FIREFOX
+          path: asbplayer/extension/.output/firefox-mv2/
           if-no-files-found: error
           retention-days: 14
