@@ -39,6 +39,94 @@ for (const file of ['AiPrompt.ts', 'AiDefinitionPanel.tsx']) {
     '<AiDefinitionPanel\n                                sentence={text}\n                                entries=',
     'pass current subtitle sentence');
   s = swap(s, '                                request={cleanRequest}\n', '', 'remove API request');
+
+  // The prompt and JSON importer belong to the extension editor, not to a specific
+  // Anki note type. Always render them. In the Clean model multiple entries are
+  // serialized into VocabularyData; older models reuse Word/Definition.
+  const originalWordFields = [
+    "                                    {settings.noteType === cleanModelName && !model.custom && model.key === 'sentence' && (",
+    "                                        <CleanWordFields",
+    "                                            entries={readVocabulary(customFieldValues.VocabularyData,word)}",
+    "                                            onFirstChange={setWord}",
+    "                                            onEntriesChange={(updater)=>setCustomFieldValues(current=>({...current,...updateVocabulary(current.VocabularyData,word,updater)}))}",
+    "                                        />",
+    "                                    )}",
+  ].join('\n');
+  s = swap(s, originalWordFields, '', 'move vocabulary inputs to top of dialog');
+
+  const originalManualPanel = [
+    "                        {settings.noteType === cleanModelName && (",
+    "                            <AiDefinitionPanel",
+    "                                sentence={text}",
+    "                                entries={readVocabulary(customFieldValues.VocabularyData,word)}",
+    "                                onEntriesChange={(updater)=>setCustomFieldValues(current=>({...current,...updateVocabulary(current.VocabularyData,word,updater)}))}",
+    "                            />",
+    "                        )}",
+  ].join('\n');
+  s = swap(s, originalManualPanel, '', 'remove model-gated manual panel');
+
+  const formTag = "<form className={classes.root} style={settings.noteType === cleanModelName ? {gridTemplateColumns:'minmax(0, 1fr)'} : undefined}>";
+  const alwaysVisibleManualPanel = [
+    "                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 12 }}>",
+    "                            {settings.noteType === cleanModelName ? (",
+    "                                <CleanWordFields",
+    "                                    entries={readVocabulary(customFieldValues.VocabularyData, word)}",
+    "                                    onFirstChange={setWord}",
+    "                                    onEntriesChange={(updater) => setCustomFieldValues((current) => ({",
+    "                                        ...current,",
+    "                                        ...updateVocabulary(current.VocabularyData, word, updater),",
+    "                                    }))}",
+    "                                />",
+    "                            ) : (",
+    "                                <TextField",
+    '                                    label="Word / Expression for manual JSON"',
+    "                                    value={word}",
+    "                                    onChange={(event) => setWord(event.target.value)}",
+    '                                    variant="outlined" size="small" fullWidth',
+    "                                />",
+    "                            )}",
+    "                            <AiDefinitionPanel",
+    "                                sentence={text}",
+    "                                entries={settings.noteType === cleanModelName",
+    "                                    ? readVocabulary(customFieldValues.VocabularyData, word)",
+    "                                    : [{",
+    "                                        term: word, definition,",
+    "                                        partOfSpeech: customFieldValues.PartOfSpeech || '',",
+    "                                        ipa: customFieldValues.IPA || '', source: '',",
+    "                                    }]}",
+    "                                onEntriesChange={(updater) => {",
+    "                                    if (settings.noteType === cleanModelName) {",
+    "                                        setCustomFieldValues((current) => ({",
+    "                                            ...current,",
+    "                                            ...updateVocabulary(current.VocabularyData, word, updater),",
+    "                                        }));",
+    "                                        return;",
+    "                                    }",
+    "                                    const updated = updater([{",
+    "                                        term: word, definition,",
+    "                                        partOfSpeech: customFieldValues.PartOfSpeech || '',",
+    "                                        ipa: customFieldValues.IPA || '', source: '',",
+    "                                    }])[0];",
+    "                                    if (!updated) return;",
+    "                                    setWord(updated.term);",
+    "                                    setDefinition(updated.definition);",
+    "                                    setCustomFieldValues((current) => ({",
+    "                                        ...current, PartOfSpeech: updated.partOfSpeech, IPA: updated.ipa,",
+    "                                    }));",
+    "                                }}",
+    "                            />",
+    "                            {settings.noteType !== cleanModelName && (",
+    '                                <Alert severity="info">',
+    "                                    Manual JSON is available for one word or expression.",
+    "                                    To save several expressions in one card, activate the",
+    "                                    unlimited Anki model in settings.",
+    "                                </Alert>",
+    "                            )}",
+    "                        </div>",
+  ].join('\n');
+  s = swap(s, formTag, formTag + '\n' + alwaysVisibleManualPanel,
+    'show prompt/JSON at top for every Anki model');
+
   write(file, s);
 }
 
