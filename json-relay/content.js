@@ -31,14 +31,6 @@ const PROFILES = {
     stop: ['button[data-testid="stop-button"]','button[aria-label="Stop generating"]','button[aria-label*="Stop" i]','button[aria-label*="Interromper" i]'],
     complete: ['button[data-testid="copy-turn-action-button"]','button[aria-label="Copy message"]','button[aria-label="Copiar mensagem"]','button[aria-label*="Copy message" i]']
   },
-  claude: {
-    test: /(^|\.)claude\.ai$/i,
-    input: ['[contenteditable="true"].ProseMirror','[data-testid="chat-input"] [contenteditable="true"]'],
-    send: ['button[aria-label="Send message"]','button[aria-label="Send Message"]','button[data-testid="send-button"]'],
-    reply: ['[data-testid="assistant-message"]','[data-is-streaming="false"] .font-claude-response','.font-claude-response'],
-    stop: ['button[aria-label="Stop response"]','button[aria-label="Stop generating"]'],
-    complete: []
-  },
   gemini: {
     test: /(^|\.)gemini\.google\.com$/i,
     input: [
