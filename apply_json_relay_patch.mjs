@@ -13,6 +13,65 @@ fs.copyFileSync('JsonRelayBackground.ts',path.join(root,'extension/src/services/
 {
  const f='common/components/AnkiDialog.tsx';
  let s=read(f);
+ const sentenceBlock=[
+ "                                    {!model.custom && model.key === 'sentence' && model.field.display && (",
+ "                                        <SentenceField",
+ "                                            text={text}",
+ "                                            label={t('ankiDialog.sentence')}",
+ "                                            width={width}",
+ "                                            onChangeText={handleSentenceTextChange}",
+ "                                            selectedSubtitles={selectedSubtitles}",
+ "                                        />",
+ "                                    )}",
+ ].join('\n');
+ const sentenceWithMeta=[
+ "                                    {!model.custom && model.key === 'sentence' && model.field.display && (",
+ "                                        settings.noteType === cleanModelName ? (",
+ "                                            <SentenceField",
+ "                                                text={text}",
+ "                                                label={t('ankiDialog.sentence')}",
+ "                                                width={width}",
+ "                                                onChangeText={handleSentenceTextChange}",
+ "                                                selectedSubtitles={selectedSubtitles}",
+ "                                            />",
+ "                                        ) : (",
+ "                                            <div style={{minWidth:0}}>",
+ "                                                <SentenceField",
+ "                                                    text={text}",
+ "                                                    label={t('ankiDialog.sentence')}",
+ "                                                    width={width}",
+ "                                                    onChangeText={handleSentenceTextChange}",
+ "                                                    selectedSubtitles={selectedSubtitles}",
+ "                                                />",
+ "                                                <div style={{display:'grid',gridTemplateColumns:'repeat(2,minmax(0,1fr))',columnGap:12}}>",
+ "                                                    <TextField",
+ "                                                        variant=\"filled\" color=\"primary\" fullWidth",
+ "                                                        label=\"Part of speech\"",
+ "                                                        value={customFieldValues.PartOfSpeech || ''}",
+ "                                                        onChange={(event)=>setCustomFieldValues(current=>({...current,PartOfSpeech:event.target.value}))}",
+ "                                                    />",
+ "                                                    <TextField",
+ "                                                        variant=\"filled\" color=\"primary\" fullWidth",
+ "                                                        label=\"IPA\"",
+ "                                                        value={customFieldValues.IPA || ''}",
+ "                                                        onChange={(event)=>setCustomFieldValues(current=>({...current,IPA:event.target.value}))}",
+ "                                                    />",
+ "                                                </div>",
+ "                                            </div>",
+ "                                        )",
+ "                                    )}",
+ ].join('\n');
+ s=replace(s,sentenceBlock,sentenceWithMeta,'place part of speech and IPA under Sentence');
+ s=replace(s,
+   "model.custom && model.field.display && !(settings.noteType === cleanModelName && cleanCustomNames.includes(model.key)) && !(settings.noteType === fluencyNoteTypeName",
+   "model.custom && model.field.display && !(['PartOfSpeech','IPA'].includes(model.key)) && !(settings.noteType === cleanModelName && cleanCustomNames.includes(model.key)) && !(settings.noteType === fluencyNoteTypeName",
+   'avoid duplicate POS/IPA custom fields');
+ write(f,s);
+}
+
+{
+ const f='common/components/AnkiDialog.tsx';
+ let s=read(f);
  s=replace(s,'    inTutorial?: boolean;\n}','    inTutorial?: boolean;\n    jsonRelayRequest?: (input: { provider: string; prompt: string }) => Promise<{ ok: boolean; response?: string; error?: string }>;\n}','Anki dialog relay prop');
  s=replace(s,'    inTutorial,\n}: AnkiDialogProps) => {','    inTutorial,\n    jsonRelayRequest,\n}: AnkiDialogProps) => {','Anki dialog relay destructuring');
  s=replace(s,'                    <AiDefinitionPanel\n                        sentence={text}','                    <AiDefinitionPanel\n                        sentence={text}\n                        request={jsonRelayRequest}','pass relay request to panel');
