@@ -16,11 +16,13 @@ interface Props {
   sentence: string;
   entries: VocabularyEntry[];
   onEntriesChange: (updater: (previous: VocabularyEntry[]) => VocabularyEntry[]) => void;
+  showEntryFields?: boolean;
 }
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 
-export default function AiDefinitionPanel({ sentence, entries, onEntriesChange }: Props) {
+export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, showEntryFields = false }: Props) {
   const [response, setResponse] = useState('');
+  const [showPrompt, setShowPrompt] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [imported, setImported] = useState<{ result: AIResult; signature: string } | null>(null);
@@ -41,7 +43,8 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange }
       await navigator.clipboard.writeText(prompt);
       setMessage('Prompt copied. Paste it into any AI chat, then copy the JSON reply back here.');
     } catch {
-      setError('Clipboard access is unavailable. Select and copy the prompt from the field below.');
+      setShowPrompt(true);
+      setError('Clipboard access is unavailable. Select and copy the expanded prompt.');
     }
   };
 
@@ -85,34 +88,38 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange }
   };
 
   return <Box sx={{
-    gridColumn:'1/-1', minWidth:0, display:'flex', flexDirection:'column', gap:1.5,
-    p:1.5, border:'1px solid', borderColor:'divider', borderRadius:2, overflow:'hidden',
+    mt:1.5, pt:1.5, pb:0.5, minWidth:0, borderTop:'1px solid',
+    borderColor:'divider', display:'flex', flexDirection:'column', gap:1,
   }}>
-    <Typography variant="subtitle2" fontWeight={700}>Contextual English definitions · manual AI</Typography>
-    <Typography variant="body2" color="text.secondary">
-      No dictionary API, keys, accounts or automatic AI requests. Copy the prompt,
-      use any AI you prefer, and paste its JSON answer here.
-    </Typography>
-    <Box sx={{p:1.25,bgcolor:'action.hover',borderRadius:2}}>
-      <Typography variant="caption" color="text.secondary">Original subtitle context</Typography>
-      <Typography variant="body2" sx={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>
-        {sentence.trim() || 'No subtitle text selected. Definitions will rely on the most common meaning.'}
+    <Box sx={{display:'flex',alignItems:'center',flexWrap:'wrap',gap:1}}>
+      <Typography variant="subtitle2" fontWeight={700} sx={{mr:1}}>
+        Manual AI · JSON
       </Typography>
+      <Button type="button" size="small" variant="outlined"
+        startIcon={<ContentCopyOutlinedIcon/>} disabled={!prompt}
+        onClick={() => { void copyPrompt(); }} sx={{textTransform:'none'}}>
+        Copy prompt
+      </Button>
+      <Button type="button" size="small" variant="text" disabled={!prompt}
+        onClick={() => setShowPrompt(value => !value)} sx={{textTransform:'none'}}>
+        {showPrompt ? 'Hide prompt' : 'Show prompt'}
+      </Button>
     </Box>
-    <Button type="button" variant="outlined" startIcon={<ContentCopyOutlinedIcon/>}
-      disabled={!prompt} onClick={() => { void copyPrompt(); }} sx={{alignSelf:'flex-start',textTransform:'none'}}>
-      1. Copy prompt
-    </Button>
-    <TextField label="Generated prompt (can be selected and copied)" value={prompt}
-      fullWidth multiline minRows={2} maxRows={5} size="small" InputProps={{readOnly:true}} />
-    <TextField label="2. Paste the JSON response from your AI" value={response}
-      onChange={event => { setResponse(event.target.value); setError(''); setMessage(''); }}
-      fullWidth multiline minRows={3} maxRows={9} size="small"
-      placeholder='{"version":2,"sentence":"Original subtitle","entries":[{"term":"word","meanings":[{"definition":"Contextual English definition","partOfSpeech":"verb","ipa":""}]}]}' />
-    <Button type="button" variant="contained" disabled={!response.trim() || !activeEntries.length}
-      onClick={importJSON} sx={{alignSelf:'flex-start',textTransform:'none'}}>
-      3. Import JSON
-    </Button>
+    {showPrompt && <TextField label="Generated prompt" value={prompt}
+      fullWidth multiline minRows={1} maxRows={3} size="small"
+      InputProps={{readOnly:true}} />}
+    <Box sx={{display:'flex',alignItems:'flex-end',gap:1,minWidth:0}}>
+      <TextField label="Paste AI JSON" value={response}
+        onChange={event => { setResponse(event.target.value); setError(''); setMessage(''); }}
+        fullWidth multiline minRows={2} maxRows={5} size="small"
+        placeholder="Paste the JSON response here" />
+      <Button type="button" size="small" variant="contained"
+        disabled={!response.trim() || !activeEntries.length}
+        onClick={importJSON}
+        sx={{textTransform:'none',flexShrink:0,whiteSpace:'nowrap',mb:1}}>
+        Import JSON
+      </Button>
+    </Box>
     {error && <Alert severity="warning" sx={{py:0}}>{error}</Alert>}
     {message && <Alert severity="success" sx={{py:0}}>{message}</Alert>}
     {activeEntries.map((entry, index) => {
@@ -123,13 +130,15 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange }
         sense.partOfSpeech === entry.partOfSpeech &&
         sense.ipa === entry.ipa
       );
+      if (!showEntryFields && meanings.length < 2) return null;
       return <Box key={index} sx={{
-        display:'flex', flexDirection:'column', gap:1, p:1.5,
-        bgcolor:'action.hover', borderRadius:2, minWidth:0,
+        display:'flex', flexDirection:'column', gap:1, p:showEntryFields ? 1 : 0,
+        bgcolor:showEntryFields ? 'action.hover' : undefined,
+        borderRadius:1, minWidth:0,
       }}>
-        <Typography variant="subtitle2" sx={{overflowWrap:'anywhere'}}>
+        {showEntryFields && <Typography variant="subtitle2" sx={{overflowWrap:'anywhere'}}>
           {String(index+1).padStart(2,'0')} · {entry.term}
-        </Typography>
+        </Typography>}
         {meanings.length > 1 && <FormControl fullWidth size="small">
           <InputLabel id={'ai-meaning-'+index}>Meaning (best contextual match first)</InputLabel>
           <Select labelId={'ai-meaning-'+index} label="Meaning (best contextual match first)"
@@ -141,18 +150,17 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange }
             </MenuItem>)}
           </Select>
         </FormControl>}
-        <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'minmax(0,1fr) minmax(0,1fr)'},gap:1}}>
-          <TextField label="Part of speech" size="small" fullWidth value={entry.partOfSpeech}
-            onChange={event => changeField(index, 'partOfSpeech', event.target.value)}/>
-          <TextField label="IPA (American English, if available)" size="small" fullWidth value={entry.ipa}
-            onChange={event => changeField(index, 'ipa', event.target.value)}/>
-        </Box>
-        <TextField label="Definition (English)" fullWidth multiline minRows={2} maxRows={4}
-          size="small" value={entry.definition}
-          onChange={event => changeField(index, 'definition', event.target.value)}/>
-        {entry.source && <Typography variant="caption" color="text.secondary">
-          {entry.source} · Review AI output for accuracy.
-        </Typography>}
+        {showEntryFields && <>
+          <Box sx={{display:'grid',gridTemplateColumns:{xs:'1fr',sm:'minmax(0,1fr) minmax(0,1fr)'},gap:1}}>
+            <TextField label="Part of speech" size="small" fullWidth value={entry.partOfSpeech}
+              onChange={event => changeField(index, 'partOfSpeech', event.target.value)}/>
+            <TextField label="IPA (American English, if available)" size="small" fullWidth value={entry.ipa}
+              onChange={event => changeField(index, 'ipa', event.target.value)}/>
+          </Box>
+          <TextField label="Definition (English)" fullWidth multiline minRows={2} maxRows={4}
+            size="small" value={entry.definition}
+            onChange={event => changeField(index, 'definition', event.target.value)}/>
+        </>}
       </Box>;
     })}
   </Box>;
