@@ -22,6 +22,8 @@ const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCa
 
 export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, showEntryFields = false }: Props) {
   const [response, setResponse] = useState('');
+  const [provider, setProvider] = useState('chatgpt');
+  const [working, setWorking] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -46,6 +48,28 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
       setShowPrompt(true);
       setError('Clipboard access is unavailable. Select and copy the expanded prompt.');
     }
+  };
+
+
+  const generateAutomatically = async () => {
+    setError(''); setMessage('');
+    if (!prompt || working) return;
+    setWorking(true);
+    try {
+      // Routed to the extension service worker; the browser tab stays in the background.
+      const result = await chrome.runtime.sendMessage({
+        action: 'ASB_JSON_RELAY_RUN', provider, prompt,
+      });
+      if (!result?.ok) throw Error(result?.error || 'Could not collect the AI response.');
+      const text = String(result.response || '');
+      const parsed = parseAIResult(text, entries, sentence);
+      setResponse(text);
+      onEntriesChange(previous => mergeAIResult(previous, parsed));
+      setImported({ result: parsed, signature });
+      setMessage('AI JSON captured and validated. Review definitions before exporting.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    } finally { setWorking(false); }
   };
 
   const importJSON = () => {
@@ -104,6 +128,22 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
         onClick={() => setShowPrompt(value => !value)} sx={{textTransform:'none'}}>
         {showPrompt ? 'Hide prompt' : 'Show prompt'}
       </Button>
+    </Box>
+    <Box sx={{display:'flex',alignItems:'center',gap:1,flexWrap:'wrap'}}>
+      <FormControl size="small" sx={{minWidth:125}}>
+        <InputLabel id="json-relay-provider">AI tab</InputLabel>
+        <Select labelId="json-relay-provider" label="AI tab" value={provider}
+          onChange={event=>setProvider(String(event.target.value))} disabled={working}>
+          <MenuItem value="chatgpt">ChatGPT</MenuItem>
+          <MenuItem value="gemini">Gemini</MenuItem>
+          <MenuItem value="claude">Claude</MenuItem>
+        </Select>
+      </FormControl>
+      <Button type="button" variant="outlined" size="small" disabled={!prompt || working}
+        onClick={()=>{void generateAutomatically();}} sx={{textTransform:'none'}}>
+        {working ? 'Waiting for AI…' : 'Generate automatically'}
+      </Button>
+      <Typography variant="caption" color="text.secondary">Requires an open, signed-in AI tab. Manual JSON remains available.</Typography>
     </Box>
     {showPrompt && <TextField label="Generated prompt" value={prompt}
       fullWidth multiline minRows={1} maxRows={3} size="small"
