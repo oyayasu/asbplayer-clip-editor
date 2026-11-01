@@ -31,7 +31,6 @@ export default function AiDefinitionPanel({ sentence, entries, request, onEntrie
     try { return localStorage.getItem('asb-json-relay-mode') === 'automatic' ? 'automatic' : 'manual'; }
     catch { return 'manual'; }
   });
-  const attempted = useRef('');
   const currentRequest = useRef('');
   const busy = useRef(false);
   const mounted = useRef(true);
@@ -63,9 +62,8 @@ export default function AiDefinitionPanel({ sentence, entries, request, onEntrie
   };
 
 
-  // A new subtitle/term changes this identity; older responses must never overwrite it.
+  // A response is only allowed to update the exact provider + subtitle + term snapshot that requested it.
   const requestKey = provider + '\\u001d' + signature;
-  currentRequest.current = mode === 'automatic' ? requestKey : '';
   useEffect(() => {
     try {
       localStorage.setItem('asb-json-relay-mode', mode);
@@ -76,37 +74,35 @@ export default function AiDefinitionPanel({ sentence, entries, request, onEntrie
     mounted.current = true;
     return () => { mounted.current = false; currentRequest.current = ''; };
   }, []);
-  useEffect(() => {
-    if (mode !== 'automatic' || !prompt || !activeEntries.length || busy.current || attempted.current === requestKey) return;
-    const timer = setTimeout(() => {
-      if (busy.current || currentRequest.current !== requestKey) return;
-      busy.current = true;
-      attempted.current = requestKey;
-      setWorking(true); setError(''); setMessage('');
-      void (async () => {
-        try {
-          if (!request) throw Error('Automatic relay is unavailable in this editor context.');
-          const result = await request({ provider, prompt });
-          if (!result?.ok) throw Error(result?.error || 'Could not collect the AI response.');
-          const raw = String(result.response || '');
-          const parsed = parseAIResult(raw, entries, sentence);
-          if (mounted.current && currentRequest.current === requestKey) {
-            setResponse(raw);
-            onEntriesChange(previous => mergeAIResult(previous, parsed));
-            setImported({result:parsed,signature});
-            setMessage('Definitions filled automatically. Review before exporting.');
-          }
-        } catch (cause) {
-          if (mounted.current && currentRequest.current === requestKey)
-            setError(cause instanceof Error ? cause.message : String(cause));
-        } finally {
-          busy.current = false;
-          if (mounted.current) setWorking(false);
-        }
-      })();
-    }, 900);
-    return () => clearTimeout(timer);
-  }, [mode, provider, prompt, requestKey, working]);
+
+  const fillAutomatically = async () => {
+    if (mode !== 'automatic' || !prompt || !activeEntries.length || busy.current) return;
+    const key = requestKey;
+    currentRequest.current = key;
+    busy.current = true;
+    setWorking(true);
+    setError('');
+    setMessage('');
+    try {
+      if (!request) throw Error('Automatic relay is unavailable in this editor context.');
+      const result = await request({ provider, prompt });
+      if (!result?.ok) throw Error(result?.error || 'Could not collect the AI response.');
+      const raw = String(result.response || '');
+      const parsed = parseAIResult(raw, entries, sentence);
+      if (mounted.current && currentRequest.current === key) {
+        setResponse(raw);
+        onEntriesChange(previous => mergeAIResult(previous, parsed));
+        setImported({ result: parsed, signature });
+        setMessage('Definitions filled automatically. Review before exporting.');
+      }
+    } catch (cause) {
+      if (mounted.current && currentRequest.current === key)
+        setError(cause instanceof Error ? cause.message : String(cause));
+    } finally {
+      busy.current = false;
+      if (mounted.current && currentRequest.current === key) setWorking(false);
+    }
+  };
 
   const importJSON = () => {
     setError('');
@@ -163,16 +159,20 @@ export default function AiDefinitionPanel({ sentence, entries, request, onEntrie
         <FormControl size="small" sx={{minWidth:125}}>
           <InputLabel id="json-relay-provider">AI tab</InputLabel>
           <Select labelId="json-relay-provider" label="AI tab" value={provider}
-            onChange={event=>{attempted.current='';setProvider(String(event.target.value));}}>
+            onChange={event=>{currentRequest.current='';setError('');setMessage('');setProvider(String(event.target.value));}}>
             <MenuItem value="chatgpt">ChatGPT</MenuItem>
             <MenuItem value="gemini">Gemini</MenuItem>
             <MenuItem value="claude">Claude</MenuItem>
           </Select>
         </FormControl>
+        <Button type="button" size="small" variant="contained"
+          disabled={!prompt || !activeEntries.length || working}
+          onClick={()=>{void fillAutomatically();}} sx={{textTransform:'none'}}>
+          {working ? 'Filling…' : 'Fill'}
+        </Button>
         <Typography variant="caption" color="text.secondary">
-          {working ? 'Waiting for AI response…' : prompt ? 'Automatically fills fields from your open AI tab.' : 'Enter a word to generate.'}
+          {working ? 'Waiting for AI response…' : prompt ? 'Fills all AI fields from your open AI tab.' : 'Enter a word to fill.'}
         </Typography>
-        {!!error && <Button type="button" size="small" onClick={()=>{attempted.current='';setError('');setWorking(v=>!v);}}>Retry</Button>}
       </Box>
     ) : (
       <>
