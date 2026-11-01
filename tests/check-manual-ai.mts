@@ -50,15 +50,18 @@ const handler = read('extension/src/handlers/video/http-post-handler.ts');
 const settings = read('common/components/AnkiSettingsTab.tsx');
 const model = read('common/components/CleanNoteType.ts');
 assert(dialog.includes('<AiDefinitionPanel'));
-// Regression: the old panel was hidden whenever the user's current Anki
-// note type was not the custom unlimited model. Keep the manual editor visible.
-assert(dialog.includes('label="Word / Expression for manual JSON"'));
+// The browser's original Word and Definition fields remain in the main form.
+// The JSON tools appear only after that form, without a duplicate Word field.
+assert(dialog.includes('<WordField'));
+assert(dialog.includes('<DefinitionField'));
+assert(!dialog.includes('Word / Expression for manual JSON'));
 assert(dialog.includes('setDefinition(updated.definition)'));
-assert(dialog.includes("settings.noteType === cleanModelName ? ("));
 assert.equal((dialog.match(/<AiDefinitionPanel\b/g) ?? []).length, 1);
 assert.equal((dialog.match(/<CleanWordFields\b/g) ?? []).length, 1);
+assert(dialog.indexOf('ankiFieldModels.map(') < dialog.indexOf('<AiDefinitionPanel'));
+assert(dialog.indexOf('</form>') < dialog.indexOf('<AiDefinitionPanel'));
 assert(!dialog.includes("{settings.noteType === cleanModelName && (\n                            <AiDefinitionPanel"));
-assert(dialog.indexOf('<AiDefinitionPanel') < dialog.indexOf('ankiFieldModels.map('));
+assert(dialog.includes('showEntryFields={settings.noteType === cleanModelName}'));
 assert(dialog.includes('sentence={text}'));
 assert(!dialog.includes('cleanRequest'));
 assert(!frame.includes('cleanRequest'));
@@ -68,6 +71,11 @@ assert(!panel.includes('fetch('));
 assert(!panel.includes('chrome.runtime'));
 assert(!panel.includes('axios'));
 assert(panel.includes('navigator.clipboard.writeText(prompt)'));
+assert(panel.includes('const [showPrompt, setShowPrompt] = useState(false)'));
+assert(panel.includes("{showPrompt && <TextField"));
+assert(panel.includes('label="Paste AI JSON"'));
+assert(panel.includes("if (!showEntryFields && meanings.length < 2) return null"));
+assert(!panel.includes('Original subtitle context'));
 assert(panel.includes('parseAIResult(response, entries, sentence)'));
 assert(panel.includes('label="Definition (English)"'));
 assert(panel.includes('Meaning (best contextual match first)'));
