@@ -50,6 +50,15 @@ const handler = read('extension/src/handlers/video/http-post-handler.ts');
 const settings = read('common/components/AnkiSettingsTab.tsx');
 const model = read('common/components/CleanNoteType.ts');
 assert(dialog.includes('<AiDefinitionPanel'));
+// Regression: the old panel was hidden whenever the user's current Anki
+// note type was not the custom unlimited model. Keep the manual editor visible.
+assert(dialog.includes('label="Word / Expression for manual JSON"'));
+assert(dialog.includes('setDefinition(updated.definition)'));
+assert(dialog.includes("settings.noteType === cleanModelName ? ("));
+assert.equal((dialog.match(/<AiDefinitionPanel\b/g) ?? []).length, 1);
+assert.equal((dialog.match(/<CleanWordFields\b/g) ?? []).length, 1);
+assert(!dialog.includes("{settings.noteType === cleanModelName && (\n                            <AiDefinitionPanel"));
+assert(dialog.indexOf('<AiDefinitionPanel') < dialog.indexOf('ankiFieldModels.map('));
 assert(dialog.includes('sentence={text}'));
 assert(!dialog.includes('cleanRequest'));
 assert(!frame.includes('cleanRequest'));
