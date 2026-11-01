@@ -45,26 +45,66 @@ export function buildAIPrompt(sentence: string, entries: VocabularyEntry[]): str
   ].join('\n');
 }
 
+function jsonCandidates(raw: string): string[] {
+  const candidates: string[] = [raw.trim()];
+  const fence = String.fromCharCode(96).repeat(3);
+  const fenceRe = new RegExp(fence + '(?:json)?\\s*([\\s\\S]*?)' + fence, 'gi');
+  for (const match of raw.matchAll(fenceRe)) {
+    if (match[1]?.trim()) candidates.push(match[1].trim());
+  }
+  let depth = 0, start = -1, inString = false, escaped = false;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === '}' && depth > 0) {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        candidates.push(raw.slice(start, i + 1).trim());
+        start = -1;
+      }
+    }
+  }
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+function decodeAIJson(raw: string): unknown {
+  let lastError: unknown;
+  for (const candidate of jsonCandidates(raw)) {
+    try {
+      const decoded = JSON.parse(candidate);
+      if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+        const object = decoded as Record<string, unknown>;
+        if (object.version === 2 && Array.isArray(object.entries)) return decoded;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError ?? Error('No JSON object found.');
+}
+
 export function parseAIResult(response: string, entries: VocabularyEntry[], sentence: string): AIResult {
   const raw = response.trim();
   if (!raw) throw Error('Paste the AI JSON response first.');
   if (raw.length > 120000) throw Error('The pasted response is too large.');
-  const fence = String.fromCharCode(96).repeat(3);
-  let content = raw;
-  if (content.startsWith(fence)) {
-    const firstNewline = content.indexOf('\n');
-    if (firstNewline < 0 || !content.endsWith(fence)) throw Error('Incomplete JSON code block.');
-    content = content.slice(firstNewline + 1, -fence.length).trim();
-  }
   let decoded: unknown;
-  try { decoded = JSON.parse(content); }
-  catch { throw Error('Invalid JSON. Ask the AI to output raw, valid JSON without commentary.'); }
+  try { decoded = decodeAIJson(raw); }
+  catch { throw Error('Invalid JSON. The AI response did not contain a valid version 2 JSON object.'); }
   if (!decoded || typeof decoded !== 'object' || Array.isArray(decoded)) throw Error('Expected a JSON object.');
   const result = decoded as Record<string, unknown>;
   if (result.version !== 2 || !Array.isArray(result.entries))
     throw Error('Unsupported JSON schema. Generate a fresh prompt and request version 2.');
   if (typeof result.sentence !== 'string' || normalize(result.sentence) !== normalize(sentence))
-    throw Error('The JSON subtitle does not match the current subtitle. Generate a new prompt if it changed.');
+    throw Error('The JSON subtitle does not match the current subtitle. The relay may have captured another response; click Fill again.');
   const expected = requestedTerms(entries);
   if (result.entries.length !== expected.length)
     throw Error('The JSON must contain exactly one entry per requested word or expression.');
@@ -94,7 +134,7 @@ export function parseAIResult(response: string, entries: VocabularyEntry[], sent
     });
     return { term: expected[index], meanings };
   });
-  return { version: 2, sentence: result.sentence, entries: parsed };
+  return { version: 2, sentence: result.sentence as string, entries: parsed };
 }
 
 export function mergeAIResult(previous: VocabularyEntry[], response: AIResult): VocabularyEntry[] {
