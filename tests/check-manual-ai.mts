@@ -87,7 +87,7 @@ assert(settings.includes('manual AI / JSON'));
 assert(model.includes('asbplayer Fluency Clean Unlimited v2'));
 assert(model.includes('{{Vocabulary}}'));
 const manifestConfig = read('extension/wxt.config.ts');
-assert(manifestConfig.includes("const extName = 'ASB PLAYER JSON-MANUAL';"));
+assert(manifestConfig.includes("const extName = 'build-automatic';"));
 assert(manifestConfig.includes('const name = title;'));
 assert(!manifestConfig.includes('Language-learning with subtitles'));
 assert(dialog.includes('<AudioField'));
