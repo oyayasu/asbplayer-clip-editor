@@ -15,12 +15,13 @@ import { buildAIPrompt, parseAIResult, mergeAIResult, type AIResult, type AIMean
 interface Props {
   sentence: string;
   entries: VocabularyEntry[];
+  request?: (input: { provider: string; prompt: string }) => Promise<{ ok: boolean; response?: string; error?: string }>;
   onEntriesChange: (updater: (previous: VocabularyEntry[]) => VocabularyEntry[]) => void;
   showEntryFields?: boolean;
 }
 const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 
-export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, showEntryFields = false }: Props) {
+export default function AiDefinitionPanel({ sentence, entries, request, onEntriesChange, showEntryFields = false }: Props) {
   const [response, setResponse] = useState('');
   const [provider, setProvider] = useState(() => {
     try { return localStorage.getItem('asb-json-relay-provider') || 'chatgpt'; }
@@ -84,7 +85,8 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
       setWorking(true); setError(''); setMessage('');
       void (async () => {
         try {
-          const result = await chrome.runtime.sendMessage({action:'ASB_JSON_RELAY_RUN',provider,prompt});
+          if (!request) throw Error('Automatic relay is unavailable in this editor context.');
+          const result = await request({ provider, prompt });
           if (!result?.ok) throw Error(result?.error || 'Could not collect the AI response.');
           const raw = String(result.response || '');
           const parsed = parseAIResult(raw, entries, sentence);
