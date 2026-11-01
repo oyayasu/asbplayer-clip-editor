@@ -2,7 +2,6 @@
 const HOSTS: Record<string,string[]> = {
  chatgpt:['chatgpt.com','chat.openai.com'],
  gemini:['gemini.google.com'],
- claude:['claude.ai'],
 };
 function matchHost(url: string | undefined, provider: string): boolean {
  try {const h=new URL(url||'').hostname;return (HOSTS[provider]||[]).some(d=>h===d||h.endsWith('.'+d));}catch{return false;}
