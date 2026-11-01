@@ -151,7 +151,7 @@ for (const file of ['AiPrompt.ts', 'AiDefinitionPanel.tsx']) {
   let s = read(file);
   s = swap(s,
     'const extName = project.names.short;',
-    "const extName = 'build-automatic';",
+    "const extName = 'build-automatic-firefox';",
     'extension display title');
   s = swap(s,
     'const name = `${title}: Language-learning with subtitles`;',
