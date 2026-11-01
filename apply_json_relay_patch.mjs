@@ -20,7 +20,7 @@ fs.copyFileSync('JsonRelayBackground.ts',path.join(root,'extension/src/services/
  const f='extension/wxt.config.ts';
  let s=read(f);
  s=replace(s,"let permissions = ['tabs', 'storage', 'unlimitedStorage'];","let permissions = ['tabs', 'storage', 'unlimitedStorage', 'scripting'];",'manifest permissions');
- s=replace(s,"        let manifest: UserManifest = {","        let manifest: UserManifest = {\n            host_permissions: ['https://chatgpt.com/*', 'https://chat.openai.com/*', 'https://gemini.google.com/*', 'https://claude.ai/*'],",'host permissions');
+ s=replace(s,"        return {\n            ...manifest,\n            permissions,","        return {\n            ...manifest,\n            host_permissions: Array.from(new Set([...(manifest.host_permissions || []), 'https://chatgpt.com/*', 'https://chat.openai.com/*', 'https://gemini.google.com/*', 'https://claude.ai/*'])),\n            permissions,",'host permissions');
  write(f,s);
 }
 console.log('PASS: ASB JSON relay integrated into background, public assets and Chromium manifest.');
