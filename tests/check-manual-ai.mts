@@ -35,6 +35,8 @@ assert.equal(merged[3].definition,'To have a friendly relationship.');
 assert.equal(merged[0].source,'AI · manual JSON');
 const fenced = String.fromCharCode(96).repeat(3) + 'json\n'+JSON.stringify(result)+'\n'+String.fromCharCode(96).repeat(3);
 assert.equal(parseAIResult(fenced,entries,sentence).entries.length,3);
+const wrapped = 'Here is the result:\n```json\n'+JSON.stringify(result)+'\n```\nDone.';
+assert.equal(parseAIResult(wrapped,entries,sentence).entries.length,3);
 assert.throws(()=>parseAIResult('not JSON',entries,sentence),/Invalid JSON/);
 assert.throws(()=>parseAIResult(JSON.stringify({...result,sentence:'Not the same subtitle'}),entries,sentence),/subtitle/);
 assert.throws(()=>parseAIResult(JSON.stringify({...result,entries:result.entries.slice(1)}),entries,sentence),/exactly one/);
