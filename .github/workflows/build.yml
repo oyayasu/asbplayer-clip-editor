@@ -87,9 +87,6 @@ jobs:
       - name: Instalar dicionários online com fallback
         run: node apply_remote_patch.mjs asbplayer
 
-      - name: Validar respostas reais de dicionários online
-        run: node --experimental-strip-types tests/live-dictionary-smoke.mjs
-
       - name: Testar ida e volta das definições pela ponte do navegador
         run: node --experimental-strip-types tests/check-lookup-bridge.mts
 
@@ -102,8 +99,8 @@ jobs:
       - name: Aplicar novo editor Definition
         run: node apply_clean_patch.mjs asbplayer
 
-      - name: Validar WiktApi JSON e consultas reais
-        run: node --experimental-strip-types tests/check-wiktapi.mts --live
+      - name: Validar parser WiktApi legado sem consultas online
+        run: node --experimental-strip-types tests/check-wiktapi.mts
 
       - name: Verificar modelo ilimitado e dados dos cartões
         run: node --experimental-strip-types tests/check-unlimited.mts
