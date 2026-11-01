@@ -1,4 +1,4 @@
-# asbplayer — English Fluency (manual AI JSON)
+# ASB PLAYER JSON-MANUAL
 
 Custom asbplayer extension for learning English through real subtitle scenes, then creating Anki cards with the original sentence, audio, image and one or more vocabulary terms.
 
