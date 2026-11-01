@@ -6,9 +6,9 @@ Custom asbplayer extension for learning English through real subtitle scenes, th
 
 The **asbplayer Fluency Clean Unlimited v2** Anki model uses a fully manual AI workflow. The extension does **not** connect to an AI service, request dictionary definitions over the internet, store API keys, or automate AI web pages for this model.
 
-1. Capture a scene/subtitle in asbplayer and open the Anki editor. The **Word / Expression** input, generated prompt and JSON paste field are at the **top** of the editor, regardless of which Anki note model is selected.
-2. Enter a word, phrasal verb or idiom. Terms do not have to appear verbatim in the subtitle. With the **asbplayer Fluency Clean Unlimited v2** model selected, you can add multiple terms with **+**. With another model selected, the manual editor fills the regular Word and Definition fields for a single term.
-3. Click **Copy prompt**. It includes the original subtitle and all entered terms.
+1. Capture a scene/subtitle in asbplayer and open the Anki editor. Keep using the **original Word** field and the other Anki fields exactly as before.
+2. Enter a word, phrasal verb or idiom in **Word**. Terms do not have to appear verbatim in the subtitle. With the **asbplayer Fluency Clean Unlimited v2** model selected, its multi-expression input still supports **+**. With another model selected, the imported meaning fills the original **Definition** field.
+3. Scroll below the original Anki editor to the compact **Manual AI · JSON** section. Click **Copy prompt** (the full prompt stays hidden unless you select **Show prompt**).
 4. Paste that prompt into **any AI chat** you choose and ask it to reply.
 5. Copy the complete JSON reply and paste it into **Paste the JSON response from your AI**.
 6. Click **Import JSON**. The first definition for each term is the meaning that the AI judged most appropriate for the sentence. If the AI supplied other meanings, choose one from the dropdown.
