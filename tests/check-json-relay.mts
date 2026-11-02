@@ -13,6 +13,9 @@ const background = read('extension/src/services/json-relay-background.ts');
 const extensionBackground = read('extension/src/entrypoints/background.ts');
 const manifest = read('extension/wxt.config.ts');
 const anki = read('common/anki/anki.ts');
+const overlay = read('common/components/MobileVideoOverlay.tsx');
+const offsetInput = read('common/components/SubtitleOffsetInput.tsx');
+const scrollableControls = read('common/components/ScrollableNumberControls.tsx');
 
 assert(!panel.includes('chrome.runtime'));
 assert(panel.includes('request?:'));
@@ -55,4 +58,11 @@ assert(anki.includes("await this.createDeck(this.settingsProvider.deck, ankiConn
 assert(relay.includes("model-response message-content"));
 assert(relay.includes('[data-testid="assistant-message"]'));
 assert(relay.includes('input-area-v2 [contenteditable='));
-console.log('PASS: automatic JSON relay crosses the Anki iframe bridge and never calls runtime from the common panel.');
+assert(overlay.includes("import ScheduleIcon from '@mui/icons-material/Schedule';"));
+assert(overlay.includes('onClick={handleSubtitleTiming}'));
+assert(overlay.includes('selectedControlType={numberControlType}'));
+assert(offsetInput.includes('formatAsSigned(offsetSeconds, 3)'));
+assert(offsetInput.includes('Math.round(Number(s) * 1000)'));
+assert(offsetInput.includes("toFixed(3)"));
+assert(scrollableControls.includes('selectedControlType?: ControlType'));
+console.log('PASS: automatic JSON relay, Anki bridge, and 1ms subtitle timing shortcut are integrated.');
