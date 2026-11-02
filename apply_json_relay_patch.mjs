@@ -15,7 +15,7 @@ fs.copyFileSync('JsonRelayBackground.ts',path.join(root,'extension/src/services/
  let s=read(f);
  s=replace(s,
    "import sanitize from 'sanitize-filename';",
-   "import sanitize from 'sanitize-filename';\\nimport { cleanModelName, cleanNoteType } from '@project/common/components/CleanNoteType';",
+   "import sanitize from 'sanitize-filename';\nimport { cleanModelName, cleanNoteType } from '@project/common/components/CleanNoteType';",
    'Anki custom model import');
  s=replace(s,
    "        const fields: { [key: string]: string } = {};",
