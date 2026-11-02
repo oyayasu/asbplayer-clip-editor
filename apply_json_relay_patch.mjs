@@ -35,7 +35,7 @@ fs.copyFileSync('JsonRelayBackground.ts',path.join(root,'extension/src/services/
      "        }",
      "",
      "        const fields: { [key: string]: string } = {};",
-   ].join('\\n'),
+   ].join('\n'),
    'ensure custom Anki model before export');
  write(f,s);
 }
