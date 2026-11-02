@@ -66,8 +66,8 @@ assert(offsetInput.includes('absoluteMs % 100 === 0 ? 1 : absoluteMs % 10 === 0 
 assert(offsetInput.includes('formatAsSigned(offsetSeconds, decimals)'));
 assert(offsetInput.includes('Math.round(Number(s) * 1000)'));
 assert(offsetInput.includes("toFixed(1)"));
-assert(overlay.includes("case ControlType.subtitleOffset:\\n                handleDecrementOffset();"));
-assert(overlay.includes("case ControlType.subtitleOffset:\\n                handleIncrementOffset();"));
+assert.match(overlay, /const handleLeftNumberControl[\s\S]*?case ControlType\.subtitleOffset:\s*handleDecrementOffset\(\);/);
+assert.match(overlay, /const handleRightNumberControl[\s\S]*?case ControlType\.subtitleOffset:\s*handleIncrementOffset\(\);/);
 assert(overlay.includes("rightNumberControlDisabled = model.recording"));
 assert(overlay.includes("leftNumberControlDisabled = model.recording"));
 assert(mobileOverlayController.includes("Math.min(window.innerWidth, 460)"));
