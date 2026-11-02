@@ -45,6 +45,21 @@ export function buildAIPrompt(sentence: string, entries: VocabularyEntry[]): str
   ].join('\n');
 }
 
+function normalizePastedAIResponse(raw: string): string {
+  return raw
+    // Some chat/copy surfaces serialize indentation and quotes as HTML entities.
+    .replace(/&#x20;|&#32;/gi, ' ')
+    .replace(/&quot;|&#x22;|&#34;/gi, '"')
+    .replace(/&apos;|&#x27;|&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    // Some rich-text surfaces append a backslash to every visual line.
+    // Only remove a backslash when it is immediately acting as a line continuation.
+    .replace(/\\[ \t]*(?:\r\n|\n|\r)/g, '\n')
+    .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '');
+}
+
 function jsonCandidates(raw: string): string[] {
   const candidates: string[] = [raw.trim()];
   const fence = String.fromCharCode(96).repeat(3);
@@ -78,7 +93,8 @@ function jsonCandidates(raw: string): string[] {
 
 function decodeAIJson(raw: string): unknown {
   let lastError: unknown;
-  for (const candidate of jsonCandidates(raw)) {
+  const normalized = normalizePastedAIResponse(raw);
+  for (const candidate of jsonCandidates(normalized)) {
     try {
       const decoded = JSON.parse(candidate);
       if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
