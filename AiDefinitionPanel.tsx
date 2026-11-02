@@ -55,7 +55,7 @@ export default function AiDefinitionPanel({ sentence, entries, request, onEntrie
     setMessage('');
     if (!prompt) { setError('Type a word or expression before copying the prompt.'); return; }
     // CRLF is intentionally used for maximum compatibility with Windows/browser chat editors.
-    const plainPrompt = prompt.replace(/\\r?\\n/g, '\\r\\n');
+    const plainPrompt = prompt.replace(/\r?\n/g, '\r\n');
     try {
       await navigator.clipboard.writeText(plainPrompt);
       setMessage('Prompt copied as plain text with preserved line breaks.');
