@@ -37,6 +37,12 @@ const fenced = String.fromCharCode(96).repeat(3) + 'json\n'+JSON.stringify(resul
 assert.equal(parseAIResult(fenced,entries,sentence).entries.length,3);
 const wrapped = 'Here is the result:\n```json\n'+JSON.stringify(result)+'\n```\nDone.';
 assert.equal(parseAIResult(wrapped,entries,sentence).entries.length,3);
+const escapedHtmlJson = JSON.stringify(result, null, 2)
+  .split('\n')
+  .map((line, index, all) => line.replace(/ /g, '&#x20;') + (index < all.length - 1 ? '\\' : ''))
+  .join('\n');
+assert.equal(parseAIResult(escapedHtmlJson, entries, sentence).entries.length, 3);
+assert.equal(parseAIResult(escapedHtmlJson, entries, sentence).entries[0].meanings[0].definition, 'To leave the ground and begin to fly.');
 assert.throws(()=>parseAIResult('not JSON',entries,sentence),/Invalid JSON/);
 assert.throws(()=>parseAIResult(JSON.stringify({...result,sentence:'Not the same subtitle'}),entries,sentence),/subtitle/);
 assert.throws(()=>parseAIResult(JSON.stringify({...result,entries:result.entries.slice(1)}),entries,sentence),/exactly one/);
