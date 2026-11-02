@@ -182,9 +182,15 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  // install paused-overlay subtitle timing shortcut
  const f='common/components/SubtitleOffsetInput.tsx';
  let s=read(f);
- s=replace(s,'return formatAsSigned(offsetSeconds, 2);','return formatAsSigned(offsetSeconds, 1);','subtitle offset millisecond display');
- s=replace(s,'const stringToValue = (s: string) => Number(s) * 1000;','const stringToValue = (s: string) => Math.round(Number(s) * 10) * 100;','subtitle offset millisecond parse');
- s=replace(s,"const placeholder = '±' + Number(0).toFixed(2);","const placeholder = '±' + Number(0).toFixed(1);",'subtitle offset millisecond placeholder');
+ s=replace(s,
+   'return formatAsSigned(offsetSeconds, 2);',
+   "const absoluteMs = Math.abs(Math.round(v));\\n    const decimals = absoluteMs % 100 === 0 ? 1 : absoluteMs % 10 === 0 ? 2 : 3;\\n    return formatAsSigned(offsetSeconds, decimals);",
+   'compact subtitle offset display with millisecond precision');
+ s=replace(s,
+   'const stringToValue = (s: string) => Number(s) * 1000;',
+   'const stringToValue = (s: string) => Math.round(Number(s) * 1000);',
+   'preserve millisecond precision when typing subtitle offset');
+ s=replace(s,"const placeholder = '±' + Number(0).toFixed(2);","const placeholder = '±' + Number(0).toFixed(1);",'compact subtitle offset placeholder');
  write(f,s);
 }
 {
@@ -240,6 +246,32 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  handlerAnchor
  ].join('\n');
  s=replace(s,handlerAnchor,handler,'subtitle timing shortcut handler');
+ // Stremio-style subtitle timing arrows: click/hold changes offset by 100 ms instead of jumping to adjacent subtitle timestamps.
+ s=replace(s,
+   "            case ControlType.subtitleOffset:\\n                handleOffsetToPrevious();",
+   "            case ControlType.subtitleOffset:\\n                handleDecrementOffset();",
+   'left subtitle timing arrow decrements 100ms');
+ s=replace(s,
+   "            case ControlType.subtitleOffset:\\n                handleOffsetToNext();",
+   "            case ControlType.subtitleOffset:\\n                handleIncrementOffset();",
+   'right subtitle timing arrow increments 100ms');
+ s=replace(s,
+   "            case ControlType.subtitleOffset:\\n                handleIncrementOffset();",
+   "            case ControlType.subtitleOffset:\\n                handleDecrementOffset();",
+   'hold left subtitle timing arrow decrements');
+ s=replace(s,
+   "            case ControlType.subtitleOffset:\\n                handleDecrementOffset();",
+   "            case ControlType.subtitleOffset:\\n                handleIncrementOffset();",
+   'hold right subtitle timing arrow increments');
+ s=replace(s,
+   "                    leftNumberControlTitle: t('action.increaseOffsetButton'),\\n                    numberControlTitle: t('controls.subtitleOffset'),\\n                    rightNumberControlTitle: t('action.decreaseOffsetButton'),",
+   "                    leftNumberControlTitle: t('action.decreaseOffsetButton'),\\n                    numberControlTitle: t('controls.subtitleOffset'),\\n                    rightNumberControlTitle: t('action.increaseOffsetButton'),",
+   'subtitle timing arrow tooltips');
+ s=replace(s,
+   "        case ControlType.subtitleOffset:\\n            rightNumberControlDisabled = model.nextSubtitleTimestamp === undefined || model.recording;\\n            leftNumberControlDisabled = model.previousSubtitleTimestamp === undefined || model.recording;",
+   "        case ControlType.subtitleOffset:\\n            rightNumberControlDisabled = model.recording;\\n            leftNumberControlDisabled = model.recording;",
+   'subtitle timing arrows always available when not recording');
+
  const buttonAnchor='                {!model.recording && (';
  const button=[
  "                {!model.emptySubtitleTrack && (",
@@ -259,6 +291,15 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  ].join('\n');
  s=replace(s,buttonAnchor,button,'subtitle timing shortcut button');
  s=replace(s,'                                    initialControlType={initialControlType}\n                                    onScrollTo={handleScrollToControlType}','                                    initialControlType={initialControlType}\n                                    selectedControlType={numberControlType}\n                                    onScrollTo={handleScrollToControlType}','wire selected subtitle timing control');
+ write(f,s);
+}
+
+
+{
+ // widen paused overlay for subtitle timing controls so the right arrow is not clipped.
+ const f='extension/src/controllers/mobile-video-overlay-controller.ts';
+ let s=read(f);
+ s=replace(s,'const width = Math.min(window.innerWidth, 410);','const width = Math.min(window.innerWidth, 460);','widen paused overlay for subtitle timing controls');
  write(f,s);
 }
 
