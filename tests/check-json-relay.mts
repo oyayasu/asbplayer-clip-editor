@@ -12,6 +12,7 @@ const tabController = read('extension/src/controllers/tab-anki-ui-controller.ts'
 const background = read('extension/src/services/json-relay-background.ts');
 const extensionBackground = read('extension/src/entrypoints/background.ts');
 const manifest = read('extension/wxt.config.ts');
+const anki = read('common/anki/anki.ts');
 
 assert(!panel.includes('chrome.runtime'));
 assert(panel.includes('request?:'));
@@ -47,6 +48,10 @@ assert(existsSync(root + '/extension/public/json-relay/content.js'));
 const relay = read('extension/public/json-relay/content.js');
 assert(relay.includes('baselineNodes'));
 assert(!relay.includes('claude.ai'));
+assert(anki.includes("this.settingsProvider.noteType === cleanModelName"));
+assert(anki.includes("await this.modelNames(ankiConnectUrl)"));
+assert(anki.includes("await this.createModel(cleanNoteType, ankiConnectUrl)"));
+assert(anki.includes("await this.createDeck(this.settingsProvider.deck, ankiConnectUrl)"));
 assert(relay.includes("model-response message-content"));
 assert(relay.includes('[data-testid="assistant-message"]'));
 assert(relay.includes('input-area-v2 [contenteditable='));
