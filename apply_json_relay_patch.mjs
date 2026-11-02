@@ -11,6 +11,36 @@ fs.copyFileSync('json-relay/content.js',path.join(root,'extension/public/json-re
 fs.copyFileSync('JsonRelayBackground.ts',path.join(root,'extension/src/services/json-relay-background.ts'));
 
 {
+ const f='common/anki/anki.ts';
+ let s=read(f);
+ s=replace(s,
+   "import sanitize from 'sanitize-filename';",
+   "import sanitize from 'sanitize-filename';\\nimport { cleanModelName, cleanNoteType } from '@project/common/components/CleanNoteType';",
+   'Anki custom model import');
+ s=replace(s,
+   "        const fields: { [key: string]: string } = {};",
+   [
+     "        // Self-heal this custom build: users should not need to install the note model manually.",
+     "        if (this.settingsProvider.noteType === cleanModelName) {",
+     "            const models = await this.modelNames(ankiConnectUrl);",
+     "            if (!models.includes(cleanModelName)) {",
+     "                await this.createModel(cleanNoteType, ankiConnectUrl);",
+     "            }",
+     "            if (this.settingsProvider.deck) {",
+     "                const decks = await this.deckNames(ankiConnectUrl);",
+     "                if (!decks.includes(this.settingsProvider.deck)) {",
+     "                    await this.createDeck(this.settingsProvider.deck, ankiConnectUrl);",
+     "                }",
+     "            }",
+     "        }",
+     "",
+     "        const fields: { [key: string]: string } = {};",
+   ].join('\\n'),
+   'ensure custom Anki model before export');
+ write(f,s);
+}
+
+{
  const f='common/components/AnkiDialog.tsx';
  let s=read(f);
  const sentenceBlock=[
