@@ -250,7 +250,7 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  handlerAnchor
  ].join('\n');
  s=replace(s,handlerAnchor,handler,'subtitle timing shortcut handler');
- // Stremio-style subtitle timing arrows: click/hold changes offset by 100 ms instead of jumping to adjacent subtitle timestamps.
+ // Stremio-style subtitle timing arrows: 100 ms click/hold steps; typed values retain 1 ms precision.
  const patchHandler=(source,fnName,replacement)=>{
    const start=source.indexOf('    const '+fnName+' = useCallback');
    if(start<0)throw Error('JSON relay patch: '+fnName+' handler not found');
