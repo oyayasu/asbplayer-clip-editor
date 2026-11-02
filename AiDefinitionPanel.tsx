@@ -54,9 +54,26 @@ export default function AiDefinitionPanel({ sentence, entries, request, onEntrie
     setError('');
     setMessage('');
     if (!prompt) { setError('Type a word or expression before copying the prompt.'); return; }
+    // CRLF is intentionally used for maximum compatibility with Windows/browser chat editors.
+    const plainPrompt = prompt.replace(/\\r?\\n/g, '\\r\\n');
     try {
-      await navigator.clipboard.writeText(prompt);
-      setMessage('Prompt copied. Paste it into any AI chat, then copy the JSON reply back here.');
+      await navigator.clipboard.writeText(plainPrompt);
+      setMessage('Prompt copied as plain text with preserved line breaks.');
+      return;
+    } catch { /* fall through to DOM copy */ }
+    try {
+      const area = document.createElement('textarea');
+      area.value = plainPrompt;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      const copied = document.execCommand('copy');
+      area.remove();
+      if (!copied) throw Error('copy failed');
+      setMessage('Prompt copied as plain text with preserved line breaks.');
     } catch {
       setShowPrompt(true);
       setError('Clipboard access is unavailable. Select and copy the expanded prompt.');
