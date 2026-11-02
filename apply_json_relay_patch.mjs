@@ -181,4 +181,89 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  s=replace(s,"        return {\n            ...manifest,\n            permissions,","        return {\n            ...manifest,\n            host_permissions: Array.from(new Set([...(manifest.host_permissions || []), 'https://chatgpt.com/*', 'https://chat.openai.com/*', 'https://gemini.google.com/*'])),\n            permissions,",'host permissions');
  write(f,s);
 }
+
+{
+ // install paused-overlay subtitle timing shortcut
+ const f='common/components/SubtitleOffsetInput.tsx';
+ let s=read(f);
+ s=replace(s,'return formatAsSigned(offsetSeconds, 2);','return formatAsSigned(offsetSeconds, 3);','subtitle offset millisecond display');
+ s=replace(s,'const stringToValue = (s: string) => Number(s) * 1000;','const stringToValue = (s: string) => Math.round(Number(s) * 1000);','subtitle offset millisecond parse');
+ s=replace(s,"const placeholder = '±' + Number(0).toFixed(2);","const placeholder = '±' + Number(0).toFixed(3);",'subtitle offset millisecond placeholder');
+ write(f,s);
+}
+{
+ const f='common/components/ScrollableNumberControls.tsx';
+ let s=read(f);
+ s=replace(s,"import { useCallback, useRef, useState } from 'react';","import { useCallback, useEffect, useRef, useState } from 'react';",'scrollable controls effect import');
+ s=replace(s,'    initialControlType?: ControlType;\n    onScrollTo: (controlType: ControlType) => void;','    initialControlType?: ControlType;\n    selectedControlType?: ControlType;\n    onScrollTo: (controlType: ControlType) => void;','scrollable selected control prop');
+ s=replace(s,'    initialControlType,\n    onScrollTo,','    initialControlType,\n    selectedControlType,\n    onScrollTo,','scrollable selected control destructuring');
+ const effectAnchor='    const handleDivRef = useCallback(';
+ const effect=[
+ "    useEffect(() => {",
+ "        if (initialScroll !== InitialScrollState.ended || selectedControlType === undefined) {",
+ "            return;",
+ "        }",
+ "        const div = containerRef.current;",
+ "        if (!div) {",
+ "            return;",
+ "        }",
+ "        const targetTop = containerHeight * selectedControlType;",
+ "        if (Math.abs(div.scrollTop - targetTop) > 1) {",
+ "            div.scrollTo({ top: targetTop, behavior: 'smooth' });",
+ "        }",
+ "        if (controlTypeRef.current !== selectedControlType) {",
+ "            controlTypeRef.current = selectedControlType;",
+ "            setControlType(selectedControlType);",
+ "        }",
+ "    }, [initialScroll, selectedControlType]);",
+ "",
+ effectAnchor
+ ].join('\n');
+ s=replace(s,effectAnchor,effect,'scrollable external control selection');
+ write(f,s);
+}
+{
+ const f='common/components/MobileVideoOverlay.tsx';
+ let s=read(f);
+ s=replace(s,"import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';","import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';\nimport ScheduleIcon from '@mui/icons-material/Schedule';",'subtitle timing icon import');
+ s=replace(s,'    const [numberControlType, setNumberControlType] = useState<ControlType>(ControlType.timeDisplay);','    const [numberControlType, setNumberControlType] = useState<ControlType>(initialControlType ?? ControlType.timeDisplay);','initialize number control from requested type');
+ const handlerAnchor='    const handleOffsetToPrevious = useCallback(() => {';
+ const handler=[
+ "    const handleSubtitleTiming = useCallback(() => {",
+ "        setNumberControlType(ControlType.subtitleOffset);",
+ "        onScrollToControlType(ControlType.subtitleOffset);",
+ "        window.setTimeout(() => {",
+ "            const input = offsetInputRef.current;",
+ "            if (input) {",
+ "                input.focus();",
+ "                input.setSelectionRange(0, input.value.length);",
+ "            }",
+ "        }, 250);",
+ "    }, [onScrollToControlType]);",
+ "",
+ handlerAnchor
+ ].join('\n');
+ s=replace(s,handlerAnchor,handler,'subtitle timing shortcut handler');
+ const buttonAnchor='                {!model.recording && (';
+ const button=[
+ "                {!model.emptySubtitleTrack && (",
+ "                    <Grid item>",
+ "                        <Tooltip {...defaultTooltipProps} title={t('controls.subtitleOffset')}>",
+ "                            <span>",
+ "                                <IconButton disabled={model.recording} onClick={handleSubtitleTiming}>",
+ "                                    <ScheduleIcon",
+ "                                        className={model.recording ? classes.inactiveButton : classes.button}",
+ "                                    />",
+ "                                </IconButton>",
+ "                            </span>",
+ "                        </Tooltip>",
+ "                    </Grid>",
+ "                )}",
+ buttonAnchor
+ ].join('\n');
+ s=replace(s,buttonAnchor,button,'subtitle timing shortcut button');
+ s=replace(s,'                                    initialControlType={initialControlType}\n                                    onScrollTo={handleScrollToControlType}','                                    initialControlType={initialControlType}\n                                    selectedControlType={numberControlType}\n                                    onScrollTo={handleScrollToControlType}','wire selected subtitle timing control');
+ write(f,s);
+}
+
 console.log('PASS: ASB JSON relay integrated into background, public assets and Chromium manifest.');
