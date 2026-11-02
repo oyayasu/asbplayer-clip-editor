@@ -184,7 +184,11 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  let s=read(f);
  s=replace(s,
    'return formatAsSigned(offsetSeconds, 2);',
-   "const absoluteMs = Math.abs(Math.round(v));\\n    const decimals = absoluteMs % 100 === 0 ? 1 : absoluteMs % 10 === 0 ? 2 : 3;\\n    return formatAsSigned(offsetSeconds, decimals);",
+   [
+     "const absoluteMs = Math.abs(Math.round(v));",
+     "    const decimals = absoluteMs % 100 === 0 ? 1 : absoluteMs % 10 === 0 ? 2 : 3;",
+     "    return formatAsSigned(offsetSeconds, decimals);",
+   ].join('\n'),
    'compact subtitle offset display with millisecond precision');
  s=replace(s,
    'const stringToValue = (s: string) => Number(s) * 1000;',
