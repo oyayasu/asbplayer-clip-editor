@@ -186,9 +186,9 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  // install paused-overlay subtitle timing shortcut
  const f='common/components/SubtitleOffsetInput.tsx';
  let s=read(f);
- s=replace(s,'return formatAsSigned(offsetSeconds, 2);','return formatAsSigned(offsetSeconds, 3);','subtitle offset millisecond display');
- s=replace(s,'const stringToValue = (s: string) => Number(s) * 1000;','const stringToValue = (s: string) => Math.round(Number(s) * 1000);','subtitle offset millisecond parse');
- s=replace(s,"const placeholder = '±' + Number(0).toFixed(2);","const placeholder = '±' + Number(0).toFixed(3);",'subtitle offset millisecond placeholder');
+ s=replace(s,'return formatAsSigned(offsetSeconds, 2);','return formatAsSigned(offsetSeconds, 1);','subtitle offset millisecond display');
+ s=replace(s,'const stringToValue = (s: string) => Number(s) * 1000;','const stringToValue = (s: string) => Math.round(Number(s) * 10) * 100;','subtitle offset millisecond parse');
+ s=replace(s,"const placeholder = '±' + Number(0).toFixed(2);","const placeholder = '±' + Number(0).toFixed(1);",'subtitle offset millisecond placeholder');
  write(f,s);
 }
 {
