@@ -305,4 +305,128 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  write(f,s);
 }
 
+
+{
+ // Stremio exact subtitle track preference: distinguish eng / eng 2 / eng 3 instead of remembering only "eng".
+ const f='extension/src/controllers/video-data-sync-controller.ts';
+ let s=read(f);
+
+ const oldMatch=[
+ "    private _matchLastSyncedWithAvailableTracks() {",
+ "        const subtitleTrackChoices = this._syncedData?.subtitles ?? [];",
+ "        const tracks = {",
+ "            autoSelectedTracks: [this._emptySubtitle, this._emptySubtitle, this._emptySubtitle],",
+ "            completeMatch: false,",
+ "        };",
+ "",
+ "        const emptyChoice = this.lastLanguagesSynced.some((lang) => lang !== '-') === undefined;",
+ "",
+ "        if (!subtitleTrackChoices.length && emptyChoice) {",
+ "            tracks.completeMatch = true;",
+ "        } else {",
+ "            let matches: number = 0;",
+ "            for (let i = 0; i < this.lastLanguagesSynced.length; i++) {",
+ "                const language = this.lastLanguagesSynced[i];",
+ "                for (let j = 0; j < subtitleTrackChoices.length; j++) {",
+ "                    if (language === '-') {",
+ "                        matches++;",
+ "                        break;",
+ "                    } else if (language === subtitleTrackChoices[j].language) {",
+ "                        tracks.autoSelectedTracks[i] = subtitleTrackChoices[j];",
+ "                        matches++;",
+ "                        break;",
+ "                    }",
+ "                }",
+ "            }",
+ "            if (matches === this.lastLanguagesSynced.length) {",
+ "                tracks.completeMatch = true;",
+ "            }",
+ "        }",
+ "",
+ "        return tracks;",
+ "    }",
+ ].join('\n');
+
+ const newMatch=[
+ "    private _matchLastSyncedWithAvailableTracks() {",
+ "        const subtitleTrackChoices = this._syncedData?.subtitles ?? [];",
+ "        const tracks = {",
+ "            autoSelectedTracks: [this._emptySubtitle, this._emptySubtitle, this._emptySubtitle],",
+ "            completeMatch: false,",
+ "        };",
+ "",
+ "        const emptyChoice = this.lastLanguagesSynced.some((lang) => lang !== '-') === undefined;",
+ "        const isStremio = this._domain === 'web.stremio.com';",
+ "",
+ "        if (!subtitleTrackChoices.length && emptyChoice) {",
+ "            tracks.completeMatch = true;",
+ "        } else {",
+ "            let matches: number = 0;",
+ "            for (let i = 0; i < this.lastLanguagesSynced.length; i++) {",
+ "                const remembered = this.lastLanguagesSynced[i];",
+ "                if (remembered === '-') {",
+ "                    matches++;",
+ "                    continue;",
+ "                }",
+ "",
+ "                if (isStremio && remembered.startsWith('stremio-track:')) {",
+ "                    const parts = remembered.slice('stremio-track:'.length).split(':');",
+ "                    if (parts.length >= 2) {",
+ "                        const language = decodeURIComponent(parts.shift() ?? '');",
+ "                        const label = decodeURIComponent(parts.join(':'));",
+ "                        const exact = subtitleTrackChoices.find(",
+ "                            (track) => (track.language ?? '') === language && track.label === label",
+ "                        );",
+ "                        if (exact) {",
+ "                            tracks.autoSelectedTracks[i] = exact;",
+ "                            matches++;",
+ "                        }",
+ "                    }",
+ "                    continue;",
+ "                }",
+ "",
+ "                const languageMatches = subtitleTrackChoices.filter((track) => track.language === remembered);",
+ "                if (languageMatches.length === 1 || (!isStremio && languageMatches.length > 0)) {",
+ "                    tracks.autoSelectedTracks[i] = languageMatches[0];",
+ "                    matches++;",
+ "                }",
+ "                // On Stremio, multiple tracks can share the same language.",
+ "                // A legacy language-only preference must not silently force the first one.",
+ "            }",
+ "            if (matches === this.lastLanguagesSynced.length) {",
+ "                tracks.completeMatch = true;",
+ "            }",
+ "        }",
+ "",
+ "        return tracks;",
+ "    }",
+ ].join('\n');
+
+ s=replace(s,oldMatch,newMatch,'Stremio exact track matching');
+
+ const oldRemember=[
+ "                        if (confirmMessage.shouldRememberTrackChoices) {",
+ "                            this.lastLanguagesSynced = confirmMessage.data",
+ "                                .map((track) => track.language)",
+ "                                .filter((language) => language !== undefined);",
+ "                            await this._context.settings",
+ ].join('\n');
+
+ const newRemember=[
+ "                        if (confirmMessage.shouldRememberTrackChoices) {",
+ "                            const isStremio = this._domain === 'web.stremio.com';",
+ "                            this.lastLanguagesSynced = confirmMessage.data",
+ "                                .map((track) =>",
+ "                                    isStremio && track.id !== '-'",
+ "                                        ? `stremio-track:${encodeURIComponent(track.language ?? '')}:${encodeURIComponent(track.label)}`",
+ "                                        : track.language",
+ "                                )",
+ "                                .filter((value): value is string => value !== undefined);",
+ "                            await this._context.settings",
+ ].join('\n');
+
+ s=replace(s,oldRemember,newRemember,'Stremio remember exact subtitle track');
+ write(f,s);
+}
+
 console.log('PASS: ASB JSON relay integrated into background, public assets and Chromium manifest.');
