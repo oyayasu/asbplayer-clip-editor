@@ -247,66 +247,24 @@ for (const f of ['extension/src/controllers/anki-ui-controller.ts','extension/sr
  ].join('\n');
  s=replace(s,handlerAnchor,handler,'subtitle timing shortcut handler');
  // Stremio-style subtitle timing arrows: click/hold changes offset by 100 ms instead of jumping to adjacent subtitle timestamps.
- s=replace(s,
-   "            case ControlType.subtitleOffset:\\n                handleOffsetToPrevious();",
-   "            case ControlType.subtitleOffset:\\n                handleDecrementOffset();",
-   'left subtitle timing arrow decrements 100ms');
- s=replace(s,
-   "            case ControlType.subtitleOffset:\\n                handleOffsetToNext();",
-   "            case ControlType.subtitleOffset:\\n                handleIncrementOffset();",
-   'right subtitle timing arrow increments 100ms');
- s=replace(s,
-   [
-     "    const handleHoldLeftNumberControl = useCallback(() => {",
-     "        switch (numberControlType) {",
-     "            case ControlType.timeDisplay:",
-     "                // ignore",
-     "                break;",
-     "            case ControlType.subtitleOffset:",
-     "                handleIncrementOffset();",
-     "                break;",
-   ].join('\\n'),
-   [
-     "    const handleHoldLeftNumberControl = useCallback(() => {",
-     "        switch (numberControlType) {",
-     "            case ControlType.timeDisplay:",
-     "                // ignore",
-     "                break;",
-     "            case ControlType.subtitleOffset:",
-     "                handleDecrementOffset();",
-     "                break;",
-   ].join('\\n'),
-   'hold left subtitle timing arrow decrements');
- s=replace(s,
-   [
-     "    const handleHoldRightNumberControl = useCallback(() => {",
-     "        switch (numberControlType) {",
-     "            case ControlType.timeDisplay:",
-     "                // ignore",
-     "                break;",
-     "            case ControlType.subtitleOffset:",
-     "                handleDecrementOffset();",
-     "                break;",
-   ].join('\\n'),
-   [
-     "    const handleHoldRightNumberControl = useCallback(() => {",
-     "        switch (numberControlType) {",
-     "            case ControlType.timeDisplay:",
-     "                // ignore",
-     "                break;",
-     "            case ControlType.subtitleOffset:",
-     "                handleIncrementOffset();",
-     "                break;",
-   ].join('\\n'),
-   'hold right subtitle timing arrow increments');
- s=replace(s,
-   "                    leftNumberControlTitle: t('action.increaseOffsetButton'),\\n                    numberControlTitle: t('controls.subtitleOffset'),\\n                    rightNumberControlTitle: t('action.decreaseOffsetButton'),",
-   "                    leftNumberControlTitle: t('action.decreaseOffsetButton'),\\n                    numberControlTitle: t('controls.subtitleOffset'),\\n                    rightNumberControlTitle: t('action.increaseOffsetButton'),",
-   'subtitle timing arrow tooltips');
- s=replace(s,
-   "        case ControlType.subtitleOffset:\\n            rightNumberControlDisabled = model.nextSubtitleTimestamp === undefined || model.recording;\\n            leftNumberControlDisabled = model.previousSubtitleTimestamp === undefined || model.recording;",
-   "        case ControlType.subtitleOffset:\\n            rightNumberControlDisabled = model.recording;\\n            leftNumberControlDisabled = model.recording;",
-   'subtitle timing arrows always available when not recording');
+ const patchHandler=(source,fnName,replacement)=>{
+   const start=source.indexOf('    const '+fnName+' = useCallback');
+   if(start<0)throw Error('JSON relay patch: '+fnName+' handler not found');
+   const end=source.indexOf('\n    const ',start+8);
+   const stop=end<0?source.length:end;
+   const block=source.slice(start,stop);
+   const next=replacement(block);
+   if(next===block)throw Error('JSON relay patch: '+fnName+' handler did not change');
+   return source.slice(0,start)+next+source.slice(stop);
+ };
+ s=patchHandler(s,'handleLeftNumberControl',block=>block.replace('handleOffsetToPrevious();','handleDecrementOffset();'));
+ s=patchHandler(s,'handleRightNumberControl',block=>block.replace('handleOffsetToNext();','handleIncrementOffset();'));
+ s=patchHandler(s,'handleHoldLeftNumberControl',block=>block.replace('handleIncrementOffset();','handleDecrementOffset();'));
+ s=patchHandler(s,'handleHoldRightNumberControl',block=>block.replace('handleDecrementOffset();','handleIncrementOffset();'));
+ s=replace(s,"leftNumberControlTitle: t('action.increaseOffsetButton'),","leftNumberControlTitle: t('action.decreaseOffsetButton'),",'left subtitle timing tooltip');
+ s=replace(s,"rightNumberControlTitle: t('action.decreaseOffsetButton'),","rightNumberControlTitle: t('action.increaseOffsetButton'),",'right subtitle timing tooltip');
+ s=replace(s,'rightNumberControlDisabled = model.nextSubtitleTimestamp === undefined || model.recording;','rightNumberControlDisabled = model.recording;','right subtitle timing arrow availability');
+ s=replace(s,'leftNumberControlDisabled = model.previousSubtitleTimestamp === undefined || model.recording;','leftNumberControlDisabled = model.recording;','left subtitle timing arrow availability');
 
  const buttonAnchor='                {!model.recording && (';
  const button=[
