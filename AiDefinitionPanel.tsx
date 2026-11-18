@@ -10,7 +10,7 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import type { VocabularyEntry } from './CleanVocabularyData';
-import { buildAIPrompt, parseAIResult, mergeAIResult, type AIResult, type AIMeaning } from './AiPrompt';
+import { buildAIPrompt, parseAIResult, mergeAIResult, type AIResult, type AIMeaning, type CardExplanationLanguage } from './AiPrompt';
 
 interface Props {
   sentence: string;
@@ -22,6 +22,10 @@ const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCa
 
 export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, showEntryFields = false }: Props) {
   const [response, setResponse] = useState('');
+  const [cardLanguage, setCardLanguage] = useState<CardExplanationLanguage>(() => {
+    try { return window.localStorage.getItem('asbplayer-card-language') === 'en-US' ? 'en-US' : 'pt-BR'; }
+    catch { return 'pt-BR'; }
+  });
   const [showPrompt, setShowPrompt] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -29,9 +33,9 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
   const termsKey = entries.map(entry => entry.term.trim()).filter(Boolean).join('\u001f');
   const signature = normalize(sentence) + '\u001e' + termsKey;
   const prompt = useMemo(() => {
-    try { return buildAIPrompt(sentence, entries); }
+    try { return buildAIPrompt(sentence, entries, cardLanguage); }
     catch { return ''; }
-  }, [sentence, termsKey]);
+  }, [sentence, termsKey, cardLanguage]);
   const activeEntries = entries.filter(entry => entry.term.trim());
   const available = imported?.signature === signature ? imported.result : null;
 
@@ -95,6 +99,22 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
       <Typography variant="subtitle2" fontWeight={700} sx={{mr:1}}>
         Manual AI · JSON
       </Typography>
+      <FormControl size="small" sx={{minWidth:160}}>
+        <InputLabel id="manual-ai-card-language">Card language</InputLabel>
+        <Select labelId="manual-ai-card-language" label="Card language" value={cardLanguage}
+          onChange={event => {
+            const next = event.target.value as CardExplanationLanguage;
+            setCardLanguage(next);
+            setImported(null);
+            setResponse('');
+            setError('');
+            setMessage('');
+            try { window.localStorage.setItem('asbplayer-card-language', next); } catch { /* optional */ }
+          }}>
+          <MenuItem value="pt-BR">Português (BR)</MenuItem>
+          <MenuItem value="en-US">English (US)</MenuItem>
+        </Select>
+      </FormControl>
       <Button type="button" size="small" variant="outlined"
         startIcon={<ContentCopyOutlinedIcon/>} disabled={!prompt}
         onClick={() => { void copyPrompt(); }} sx={{textTransform:'none'}}>
@@ -157,7 +177,7 @@ export default function AiDefinitionPanel({ sentence, entries, onEntriesChange, 
             <TextField label="IPA (American English, if available)" size="small" fullWidth value={entry.ipa}
               onChange={event => changeField(index, 'ipa', event.target.value)}/>
           </Box>
-          <TextField label="Definition (English)" fullWidth multiline minRows={2} maxRows={4}
+          <TextField label={cardLanguage === 'pt-BR' ? "Explanation (Português)" : "Definition (English)"} fullWidth multiline minRows={2} maxRows={4}
             size="small" value={entry.definition}
             onChange={event => changeField(index, 'definition', event.target.value)}/>
         </>}
