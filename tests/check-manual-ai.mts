@@ -11,7 +11,16 @@ assert(prompt.includes('American English'));
 assert(prompt.includes('Return ONLY valid raw JSON'));
 assert(prompt.includes('take off'));
 assert(prompt.includes('get along'));
-assert(prompt.includes('not a Portuguese translation'));
+assert(prompt.includes('CARD LANGUAGE: Portuguese (Brazil)'));
+assert(prompt.includes('Padrão:'));
+assert(prompt.includes('Combinações:'));
+assert(prompt.includes('Nuance:'));
+assert(prompt.includes('Exemplos:'));
+assert(prompt.includes('version 2'));
+const englishPrompt = buildAIPrompt(sentence, entries, 'en-US');
+assert(englishPrompt.includes('CARD LANGUAGE: English (US)'));
+assert(englishPrompt.includes('Collocations:'));
+assert(englishPrompt.includes('Return ONLY valid raw JSON'));
 const result = {
   version:2, sentence, entries:[
     {term:'take off',meanings:[
@@ -77,7 +86,11 @@ assert(panel.includes('label="Paste AI JSON"'));
 assert(panel.includes("if (!showEntryFields && meanings.length < 2) return null"));
 assert(!panel.includes('Original subtitle context'));
 assert(panel.includes('parseAIResult(response, entries, sentence)'));
-assert(panel.includes('label="Definition (English)"'));
+assert(panel.includes('"Definition (English)"'));
+assert(panel.includes('Card language'));
+assert(panel.includes('Português (BR)'));
+assert(panel.includes('English (US)'));
+assert(panel.includes('buildAIPrompt(sentence, entries, cardLanguage)'));
 assert(panel.includes('Meaning (best contextual match first)'));
 assert(settings.includes('manual AI / JSON'));
 assert(model.includes('asbplayer Fluency Clean Unlimited v2'));
